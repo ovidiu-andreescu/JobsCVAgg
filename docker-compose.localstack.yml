@@ -1,17 +1,12 @@
+# docker-compose.localstack.yml
 version: "3.9"
 services:
   localstack:
     image: localstack/localstack:latest
     environment:
       - SERVICES=s3,sqs,dynamodb,events,secretsmanager
-      - DEFAULT_REGION=eu-west-1
       - LS_LOG=info
     ports: ["4566:4566"]
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep '\"initialized\": true'"]
-      interval: 2s
-      timeout: 2s
-      retries: 60
 
   test:
     build:
@@ -27,5 +22,5 @@ services:
       - DYNAMODB_ENDPOINT_URL=http://localstack:4566
     depends_on:
       localstack:
-        condition: service_healthy
+        condition: service_started
     command: ["/app/scripts/run_tests.sh","integration"]

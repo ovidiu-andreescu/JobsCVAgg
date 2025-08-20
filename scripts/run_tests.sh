@@ -1,29 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGET="${1:-unit}"
+cd /app
 
 PYTHONPATH="${PYTHONPATH:-}"
-if [ -d /app/libs ]; then
-  for d in /app/libs/*/src; do [ -d "$d" ] && PYTHONPATH="${PYTHONPATH}:$d"; done
-fi
 for d in /app/services/*/src; do [ -d "$d" ] && PYTHONPATH="${PYTHONPATH}:$d"; done
+for d in /app/libs/*/src; do [ -d "$d" ] && PYTHONPATH="${PYTHONPATH}:$d"; done
 export PYTHONPATH
-
 echo "PYTHONPATH -> $PYTHONPATH"
 
-case "$TARGET" in
-  unit)
-    exec pytest -m "unit" -q
-    ;;
-  integration)
-    exec pytest -m "integration" -q
-    ;;
-  all)
-    pytest -m "unit" -q
-    exec pytest -m "integration" -q
-    ;;
-  *)
-    exec pytest "$@"
-    ;;
+case "${1:-unit}" in
+  unit)         exec pytest -q tests/unit ;;
+  integration)  exec pytest -q tests/integration ;;
+  all)          pytest -q tests/unit && exec pytest -q tests/integration ;;
+  *)            exec pytest "$@" ;;
 esac

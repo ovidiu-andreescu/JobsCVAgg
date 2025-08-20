@@ -1,0 +1,41 @@
+name: CI
+on: [pull_request]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build test image
+        run: docker build -f Dockerfile.test -t app-tests-all .
+
+      - name: running unit tests...
+        run: docker run --rm app-tests-all /app/scripts/run_tests.sh unit
+
+      - name: running unit tests...done
+        if: success()
+        run: echo "running unit tests...done"
+
+      - name: running unit tests...failed
+        if: failure()
+        run: echo "running unit tests...failed" && exit 1
+
+  integration:
+    needs: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: running integration tests...
+        run: |
+          docker compose -f docker-compose.localstack.yml up --build \
+            --abort-on-container-exit --exit-code-from test
+
+      - name: running integration tests...done
+        if: success()
+        run: echo "running integration tests...done"
+
+      - name: running integration tests...failed
+        if: failure()
+        run: echo "running integration tests...failed" && exit 1

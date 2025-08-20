@@ -1,0 +1,26 @@
+# docker-compose.localstack.yml
+version: "3.9"
+services:
+  localstack:
+    image: localstack/localstack:latest
+    environment:
+      - SERVICES=s3,sqs,dynamodb,events,secretsmanager
+      - LS_LOG=info
+    ports: ["4566:4566"]
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=eu-west-1
+      - LOCALSTACK_URL=http://localstack:4566
+      - S3_ENDPOINT_URL=http://localstack:4566
+      - SQS_ENDPOINT_URL=http://localstack:4566
+      - DYNAMODB_ENDPOINT_URL=http://localstack:4566
+    depends_on:
+      localstack:
+        condition: service_started
+    command: ["/app/scripts/run_tests.sh","integration"]

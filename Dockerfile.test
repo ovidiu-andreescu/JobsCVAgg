@@ -1,0 +1,27 @@
+# to change python version by the requirements
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements-dev.txt ./requirements-dev.txt
+RUN pip install -U pip wheel setuptools && pip install -r requirements-dev.txt
+
+COPY services /tmp/services
+RUN set -eux; \
+  REQS="$(find /tmp/services -maxdepth 2 -name 'requirements*.txt' | sort)"; \
+  if [ -n "$REQS" ]; then \
+    for req in $REQS; do \
+      echo "Installing $req"; \
+      pip install -r "$req" -c /app/constraints.txt || pip install -r "$req"; \
+    done; \
+  fi
+
+COPY libs /app/libs
+COPY services /app/services
+COPY tests /app/tests
+COPY scripts/run_tests.sh /app/scripts/run_tests.sh
+RUN chmod +x /app/scripts/run_tests.sh
+
+CMD ["/app/scripts/run_tests.sh","unit"]

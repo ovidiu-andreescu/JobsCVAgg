@@ -1,0 +1,14 @@
+region = "eu-central-1"
+
+# Leave empty if you want plain names:
+# prefix = "dev"
+
+secrets = {
+  openai_api_key = "sk-xxx"
+  db_url         = "postgresql://user:pass@host:5432/db"
+  creds_json     = <<JSON
+{"user":"svc","pass":"secret","scopes":["read","write"]}
+JSON
+}
+
+# kms_key_id = "arn:aws:kms:eu-central-1:123456789012:key/abcd-efgh-...."

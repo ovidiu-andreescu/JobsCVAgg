@@ -2,12 +2,13 @@
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl build-essential && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY pytest.ini /app/pytest.ini
 COPY requirements-dev.txt ./requirements-dev.txt
-RUN pip install -U pip wheel setuptools && pip install -r requirements-dev.txt
+COPY /libs/common/requirements-common.txt ./requirements-common.txt
+RUN pip install -U pip wheel setuptools && pip install -r requirements-dev.txt -r requirements-common.txt
 
 COPY services /tmp/services
 RUN set -eux; \

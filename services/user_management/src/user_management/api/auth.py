@@ -14,7 +14,6 @@ from ..db.sqlite import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# config din .env (sau valori default pt. local)
 NOTIFICATIONS_URL = os.getenv("NOTIFICATIONS_URL", "http://127.0.0.1:5001/notifications")
 NOTIF_CHANNEL     = os.getenv("NOTIF_CHANNEL", "console")   # "sendgrid" | "console"
 PUBLIC_BASE_URL   = os.getenv("PUBLIC_BASE_URL", "http://127.0.0.1:5000")

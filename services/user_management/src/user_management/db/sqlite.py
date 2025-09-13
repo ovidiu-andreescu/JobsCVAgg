@@ -6,12 +6,12 @@ DB_PATH = Path(__file__).resolve().parent / "users.db"
 def _connect():
     return sqlite3.connect(DB_PATH)
 
-# Inițializează baza + tabelul users (cu schema nouă)
+
 def init_db():
     conn = _connect()
     cur = conn.cursor()
 
-    # creează tabela dacă nu există deloc
+    
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,7 +20,7 @@ def init_db():
         )
     """)
 
-    # MIGRARE: adaugă coloanele lipsă
+    
     cols = {c[1] for c in cur.execute("PRAGMA table_info(users)").fetchall()}
     if "is_verified" not in cols:
         cur.execute("ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0")
@@ -93,5 +93,4 @@ def mark_verified(user_id: int):
     conn.commit()
     conn.close()
 
-# creează tabela la import
 init_db()

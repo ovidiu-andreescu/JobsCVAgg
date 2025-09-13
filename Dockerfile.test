@@ -15,7 +15,7 @@ RUN set -eux; \
   if [ -n "$REQS" ]; then \
     for req in $REQS; do \
       echo "Installing $req"; \
-      pip install -r "$req" -c /app/constraints.txt || pip install -r "$req"; \
+      pip install -r "$req"; \
     done; \
   fi
 

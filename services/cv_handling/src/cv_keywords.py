@@ -1,4 +1,7 @@
 import spacy
+import boto3
+import json
+from botocore.exceptions import BotoCoreError, ClientError
 from typing import List
 
 def extract_keywords(text: str) -> List[str]:
@@ -30,3 +33,15 @@ def extract_keywords(text: str) -> List[str]:
     # Return unique keywords
     return list(set(keywords))
 
+def upload_keywords_to_s3(s3_client, bucket_name: str, object_name: str, keywords: list):
+    try:
+        keywords_json = json.dumps(keywords, indent = 2)
+        s3_client.put_object(
+            Bucket = bucket_name,
+            Key = object_name,
+            Body = keywords_json.encode('utf-8'),
+            ContentType = "application/json"
+        )
+    except (BotoCoreError, ClientError) as e:
+        raise RuntimeError(f"Failed uploading keywords to S3: {e}")
+    

@@ -41,8 +41,8 @@ class TestLambdaHandlerKeywordsIntegration(unittest.TestCase):
         self.secretsmanager_client.create_secret(
             Name="aws/credentials",
             SecretString=json.dumps({
-                "AWS_ACCESS_KEY_ID": "testing",
-                "AWS_SECRET_ACCESS_KEY": "testing",
+                #"AWS_ACCESS_KEY_ID": "testing",
+                #"AWS_SECRET_ACCESS_KEY": "testing",
                 "AWS_REGION": "eu-central-1"
             })
         )

@@ -26,8 +26,8 @@ class TestLambdaHandlerKeywordsUnit(unittest.TestCase):
         # --- Mocks Setup ---
         # Mock AWS credentials
         mock_secrets.return_value = {
-            "AWS_ACCESS_KEY_ID": "test_access_key",
-            "AWS_SECRET_ACCESS_KEY": "test_secret_key",
+            #"AWS_ACCESS_KEY_ID": "test_access_key",
+            #"AWS_SECRET_ACCESS_KEY": "test_secret_key",
             "AWS_REGION": "eu-central-1"
         }
 

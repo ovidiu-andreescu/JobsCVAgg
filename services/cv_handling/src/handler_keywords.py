@@ -13,14 +13,12 @@ def lambda_handler_keywords(event, context):
         object_name = s3_event['object']['key']
 
         aws_secrets = secrets_loader.get_json_secret("aws/credentials")
-        access_key_id = aws_secrets.get("AWS_ACCESS_KEY_ID")
-        secret_access_key = aws_secrets.get("AWS_SECRET_ACCESS_KEY")
-        region = aws_secrets.get("AWS_REGION", "eu-central-1")
+        #access_key_id = aws_secrets.get("AWS_ACCESS_KEY_ID")
+        #secret_access_key = aws_secrets.get("AWS_SECRET_ACCESS_KEY")
+        region = aws_secrets.get("AWS_REGION", "eu-west-1")
 
         s3_client = boto3.client(
             "s3",
-            aws_access_key_id=access_key_id,
-            aws_secret_access_key=secret_access_key,
             region_name=region
         )
 

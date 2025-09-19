@@ -1,11 +1,12 @@
-import os
+# providers/adzuna.py
+
+import os, httpx
+
 from datetime import datetime
 from typing import List
-import httpx
 from job_aggregator import config
-from .base import Provider
-
 from job_aggregator.models import Job, Query
+from .base import Provider
 
 ADZUNA_BASE = os.getenv("ADZUNA_API_BASE", "https://api.adzuna.com/v1/api/jobs")
 
@@ -22,12 +23,6 @@ def _parse_dt(s: str | None):
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
     except Exception:
         return None
-
-
-app_id = config.adzuna_app_id()
-app_key = config.adzuna_app_key()
-
-API = f"?app_id={app_id}&app_key={app_key}"
 
 class AdzunaProvider(Provider):
     name = "adzuna"
@@ -47,7 +42,8 @@ class AdzunaProvider(Provider):
             "app_id": app_id,
             "app_key": app_key,
             "results_per_page": query.results_per_page,
-            "what": query.q
+            "what": query.q,
+            "content-type": "application/json"
         }
 
         async with httpx.AsyncClient(timeout=20) as client:
@@ -57,6 +53,14 @@ class AdzunaProvider(Provider):
 
         jobs: List[Job] = []
         for item in data.get("results", []):
+            salary_min = item.get("salary_min")
+            salary_max = item.get("salary_max")
+            salary_str = ""
+            if salary_min and salary_max:
+                salary_str = f"{salary_min} - {salary_max}"
+            elif salary_min:
+                salary_str = str(salary_min)
+
             jobs.append(Job(
                 source=self.name,
                 source_job_id=str(item["id"]),
@@ -67,6 +71,8 @@ class AdzunaProvider(Provider):
                 url = item.get("redirect_url"),
                 description = item.get("description"),
                 posted_at = _parse_dt(item.get("created")),
-                salary=item.get("salary_min" or "") + " - " + item.get("salary_max" or ""),
+                salary=salary_str,
                 extras={"category": (item.get("category") or {}).get("label"),}
             ))
+
+        return jobs

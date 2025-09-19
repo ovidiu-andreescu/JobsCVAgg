@@ -1,33 +1,46 @@
-locals {
-  # This boolean makes our conditional logic much clearer and less error-prone.
-  is_image_package = var.lambda_image_uri != ""
-  lambda_name      = var.prefix != "" ? "${var.prefix}-job-aggregator" : "job-aggregator"
-}
-
 resource "aws_lambda_function" "this" {
-  function_name = local.lambda_name
+  function_name = var.prefix != "" ? "${var.prefix}-job-aggregator" : "job-aggregator"
+
   role          = aws_iam_role.lambda.arn
+
+  package_type  = "Image"
+  image_uri     = var.lambda_image_uri
+
   timeout       = 30
   memory_size   = 512
   architectures = ["x86_64"]
 
-  package_type = local.is_image_package ? "Image" : "Zip"
-
-  image_uri = local.is_image_package ? var.lambda_image_uri : null
-
-  s3_bucket = !local.is_image_package ? var.lambda_zip_s3_bucket : null
-  s3_key    = !local.is_image_package ? var.lambda_zip_s3_key : null
-  handler   = !local.is_image_package ? "job_aggregator.handler.handler" : null
-  runtime   = !local.is_image_package ? "python3.12" : null
-
   environment {
-  variables = merge(
-    {
-      SECRETS_PREFIX  = var.prefix
-      JOBS_TABLE_NAME = aws_dynamodb_table.jobs.name
-    },
-    var.lambda_env
-  )
+    variables = merge(
+      {
+        SECRETS_PREFIX  = var.prefix
+        JOBS_TABLE_NAME = aws_dynamodb_table.jobs.name
+      },
+      var.lambda_env
+    )
+  }
 }
+
+
+resource "aws_cloudwatch_event_rule" "agg" {
+  count               = var.schedule_expression != "" ? 1 : 0
+  name                = "${aws_lambda_function.this.function_name}-schedule"
+  schedule_expression = var.schedule_expression
+}
+
+resource "aws_cloudwatch_event_target" "agg" {
+  count     = var.schedule_expression != "" ? 1 : 0
+  rule      = aws_cloudwatch_event_rule.agg[0].name
+  target_id = "lambda"
+  arn       = aws_lambda_function.this.arn
+}
+
+resource "aws_lambda_permission" "events" {
+  count         = var.schedule_expression != "" ? 1 : 0
+  statement_id  = "AllowEventBridgeInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.this.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.agg[0].arn
 }
 

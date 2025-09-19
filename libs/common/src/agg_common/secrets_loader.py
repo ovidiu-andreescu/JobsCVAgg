@@ -50,7 +50,6 @@ def get_secret(
 ) -> str:
     qualified = _qualify(name, prefix)
 
-    # 1) ENV override always wins
     env_val = os.getenv(_env_key(qualified))
     if env_val is not None:
         return env_val

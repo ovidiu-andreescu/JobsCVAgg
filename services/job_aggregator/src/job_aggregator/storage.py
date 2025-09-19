@@ -1,10 +1,17 @@
+# job_aggregator/storage.py
+
+
 import boto3
 import os
 from typing import List
 from .models import Job
 
+table_name = os.environ.get('JOBS_TABLE_NAME')
+if not table_name:
+    raise ValueError("Missing required environment variable: JOBS_TABLE_NAME")
+
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('jobs')
+table = dynamodb.Table(table_name)
 
 def save_jobs(jobs: List[Job]):
     if not jobs:
@@ -21,6 +28,6 @@ def save_jobs(jobs: List[Job]):
                     del item_dict['keywords']
 
                 batch.put_item(Item=item_dict)
-        print(f"Successfully saved {len(jobs)} jobs.")
+        print(f"[info] Successfully initiated batch write for {len(jobs)} jobs.")
     except Exception as e:
-        print(f"[ERROR] Failed to save jobs to DynamoDB: {e}")
+        raise e

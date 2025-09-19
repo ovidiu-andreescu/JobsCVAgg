@@ -6,7 +6,13 @@ from .adzuna import AdzunaProvider
 
 def available_providers() -> List[Provider]:
     out: List[Provider] = []
-    for p in (RemotiveProvider(), AdzunaProvider()):
-        if p.enabled:
+
+    all_provider_instances = [
+        RemotiveProvider(),
+        AdzunaProvider(),
+    ]
+
+    for p in all_provider_instances:
+        if p.enabled():
             out.append(p)
     return out

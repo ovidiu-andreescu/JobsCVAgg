@@ -1,53 +1,35 @@
 variable "region" {
-  description = "AWS region"
+  description = "The AWS region where resources will be created."
   type        = string
   default     = "eu-central-1"
 }
 
 variable "prefix" {
-  description = "An optional prefix to add to all secret names."
+  description = "A prefix to add to all resource names (e.g., 'dev', 'prod')."
   type        = string
-  default     = "app/dev"
+  default     = "dev"
 }
 
 variable "secrets" {
-  description = "Map of secret_name -> secret_value"
+  description = "A map of secret names to their values for AWS Secrets Manager."
   type        = map(string)
   sensitive   = true
   default     = {}
 }
 
-variable "kms_key_id" {
-  description = "The ARN of the KMS key to use for encrypting the secrets."
-  type        = string
-  default     = null
-}
-
 variable "lambda_image_uri" {
+  description = "The full URI of the Docker image in ECR for the Lambda function."
   type        = string
-  description = "ECR image URI for Lambda (container-based). Leave empty if using zip."
-  default     = ""
-}
-variable "lambda_zip_s3_bucket" {
-  type        = string
-  description = "S3 bucket with the Lambda zip (zip-based)."
-  default     = ""
-}
-variable "lambda_zip_s3_key" {
-  type        = string
-  description = "S3 key for the Lambda zip (zip-based)."
-  default     = ""
 }
 
 variable "lambda_env" {
+  description = "A map of extra environment variables to pass to the Lambda function."
   type        = map(string)
-  description = "Extra environment variables for the Lambda (e.g., SECRETS_PREFIX, ADZUNA_COUNTRY)"
   default     = {}
 }
 
 variable "schedule_expression" {
+  description = "The EventBridge schedule expression (e.g., 'rate(24 hours)'). Leave empty to disable."
   type        = string
-  description = "EventBridge schedule expression, e.g. rate(30 minutes) or cron(...) . Leave empty to disable scheduler."
   default     = ""
 }
-

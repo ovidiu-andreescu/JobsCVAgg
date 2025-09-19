@@ -1,5 +1,6 @@
-from __future__ import annotations
+# providers/base
 
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List
 from job_aggregator.models import Query, Job

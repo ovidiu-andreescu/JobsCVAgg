@@ -25,7 +25,7 @@ class RemotiveProvider(Provider):
         for item in data.get("jobs", []):
             jobs.append(Job(
                 source = self.name,
-                source_job_id = item.get("source_id"),
+                source_job_id = str(item.get("source_id")),
                 title = item.get("title", " ").strip(),
                 company = item.get("company_name"),
                 location = item.get("candidate_required_location"),

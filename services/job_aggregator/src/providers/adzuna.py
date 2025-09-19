@@ -47,7 +47,7 @@ class AdzunaProvider(Provider):
             "app_id": app_id,
             "app_key": app_key,
             "results_per_page": query.results_per_page,
-            "what": query.what
+            "what": query.q
         }
 
         async with httpx.AsyncClient(timeout=20) as client:

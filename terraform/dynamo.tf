@@ -1,11 +1,19 @@
 resource "aws_dynamodb_table" "jobs" {
   name           = var.prefix != "" ? "${var.prefix}-jobs" : "jobs"
   billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "source_job_id" # A unique ID from the source API
+
+  hash_key       = "source"
+
+  range_key      = "source_job_id"
+
+  attribute {
+    name = "source"
+    type = "S"
+  }
 
   attribute {
     name = "source_job_id"
-    type = "S" # S for String
+    type = "S"
   }
 
   tags = {
@@ -13,3 +21,4 @@ resource "aws_dynamodb_table" "jobs" {
     ManagedBy   = "Terraform"
   }
 }
+

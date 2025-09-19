@@ -53,9 +53,17 @@ data "aws_iam_policy_document" "dynamodb_jobs_write" {
     actions = [
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
-      "dynamodb:BatchWriteItem"
+      "dynamodb:BatchWriteItem",
+      "dynamodb:DescribeTable",
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:BatchGetItem"
     ]
-    resources = [aws_dynamodb_table.jobs.arn]
+
+    resources = [
+      aws_dynamodb_table.jobs.arn,
+      "${aws_dynamodb_table.jobs.arn}/index/*"
+    ]
   }
 }
 

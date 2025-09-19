@@ -9,9 +9,6 @@ for d in /app/libs/*/src; do [ -d "$d" ] && PYTHONPATH="${PYTHONPATH}:$d"; done
 export PYTHONPATH
 echo "PYTHONPATH -> $PYTHONPATH"
 
-
-
-
 case "${1:-unit}" in
   unit)         exec pytest -v -rA --durations=10 tests/unit ;;
   integration)  exec pytest -v -rA --durations=10 tests/integration ;;

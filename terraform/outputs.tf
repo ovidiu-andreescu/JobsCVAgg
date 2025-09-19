@@ -1,9 +1,26 @@
 output "secret_names" {
   description = "Created secret names"
-  value       = [for s in aws_secretsmanager_secret.secret : s.name]
+  # FIX: Reference the two secret resources directly by name.
+  value = [
+    aws_secretsmanager_secret.adzuna_app_id.name,
+    aws_secretsmanager_secret.adzuna_app_key.name,
+  ]
 }
 
 output "secret_arns" {
   description = "Created secret ARNs"
-  value       = { for k, s in aws_secretsmanager_secret.secret : k => s.arn }
+  # FIX: Create a map with the ARNs from the two secret resources.
+  value = {
+    adzuna_app_id  = aws_secretsmanager_secret.adzuna_app_id.arn
+    adzuna_app_key = aws_secretsmanager_secret.adzuna_app_key.arn
+  }
 }
+
+output "lambda_name" {
+  value = aws_lambda_function.this.function_name
+}
+
+output "lambda_arn" {
+  value = aws_lambda_function.this.arn
+}
+

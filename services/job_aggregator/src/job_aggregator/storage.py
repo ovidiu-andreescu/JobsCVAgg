@@ -3,24 +3,15 @@ import os
 from typing import List
 from .models import Job
 
-JOBS_TABLE_NAME = os.environ.get("JOBS_TABLE_NAME")
-if not JOBS_TABLE_NAME:
-    raise RuntimeError("Environment variable JOBS_TABLE_NAME is not set.")
-
-dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table(JOBS_TABLE_NAME)
-
-
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('Jobs')
-
 
 def save_jobs(jobs: List[Job]):
     if not jobs:
         print("No jobs to save.")
         return
 
-    print(f"Attempting to save {len(jobs)} jobs to table '{JOBS_TABLE_NAME}'...")
+    print(f"Attempting to save {len(jobs)} jobs to table '{table}'...")
     try:
         with table.batch_writer() as batch:
             for job in jobs:

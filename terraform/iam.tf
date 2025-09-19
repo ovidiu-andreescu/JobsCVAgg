@@ -40,15 +40,17 @@ resource "aws_iam_policy" "dynamodb_jobs_write" {
   name   = var.prefix != "" ? "${var.prefix}-job-agg-dynamodb-write" : "job-agg-dynamodb-write"
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [{
-      Effect   = "Allow",
-      Action   = [
-        "dynamodb:PutItem",
-        "dynamodb:UpdateItem",
-        "dynamodb:BatchWriteItem"
-      ],
-      Resource = "arn:aws:dynamodb:eu-central-1:038583382098:table/*"
-    }]
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = [
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:BatchWriteItem"
+        ],
+        Resource = aws_dynamodb_table.jobs.arn
+      }
+    ]
   })
 }
 

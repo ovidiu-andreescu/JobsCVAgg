@@ -4,7 +4,7 @@ from typing import List
 from .models import Job
 
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('Jobs')
+table = dynamodb.Table('jobs')
 
 def save_jobs(jobs: List[Job]):
     if not jobs:

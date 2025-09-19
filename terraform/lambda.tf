@@ -21,13 +21,13 @@ resource "aws_lambda_function" "this" {
   runtime   = !local.is_image_package ? "python3.12" : null
 
   environment {
-    variables = merge(
-      {
-        SECRETS_PREFIX  = var.prefix
-        JOBS_TABLE_NAME = aws_dynamodb_table.jobs.name
-      },
-      var.lambda_env
-    )
-  }
+  variables = merge(
+    {
+      SECRETS_PREFIX  = var.prefix
+      JOBS_TABLE_NAME = aws_dynamodb_table.jobs.name
+    },
+    var.lambda_env
+  )
+}
 }
 

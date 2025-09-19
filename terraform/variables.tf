@@ -33,3 +33,11 @@ variable "schedule_expression" {
   type        = string
   default     = ""
 }
+
+variable "lambda_matcher_image_uri" {
+  description = "The full URI of the Docker image in ECR for the job-matcher function."
+  type        = string
+  # No default value - this must be provided for each deployment.
+}
+
+

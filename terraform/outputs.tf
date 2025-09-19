@@ -21,3 +21,7 @@ output "secret_arns" {
   }
 }
 
+output "matcher_api_endpoint_url" {
+  description = "The invocation URL for the Job Matcher API."
+  value       = aws_apigatewayv2_api.matcher.api_endpoint
+}

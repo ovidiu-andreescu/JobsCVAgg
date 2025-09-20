@@ -5,7 +5,7 @@ import requests
 import os
 from uuid import uuid4
 
-from user_management.db.dynamodb import (
+from ..db.dynamodb import (
     create_user,
     get_user_by_email,
     get_user_by_token,

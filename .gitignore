@@ -3,6 +3,8 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+*.pyc
+
 # C extensions
 *.so
 
@@ -135,9 +137,9 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env.test
+.env
 .envrc
-.env.test
+.venv
 env/
 venv/
 ENV/
@@ -212,5 +214,10 @@ __marimo__/
 terraform.tfvars
 *.auto.tfvars
 crash.log
-.env
 .env.*
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+services/**/db/*.db
+

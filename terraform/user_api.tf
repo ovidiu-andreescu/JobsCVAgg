@@ -1,27 +1,32 @@
-# This file defines all resources for the new user-api microservice.
-
-# 1. --- DynamoDB Table for Users ---
 resource "aws_dynamodb_table" "users" {
   name         = var.prefix != "" ? "${var.prefix}-users" : "users"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "email" # Using email as the primary key
+  hash_key     = "email"
 
   attribute {
     name = "email"
     type = "S"
   }
-  tags = { Project = "UserAPI", ManagedBy = "Terraform" }
+  tags = { Project = "JobAggregator", ManagedBy = "Terraform" }
 }
 
-# 2. --- Secret for JWT ---
 resource "aws_secretsmanager_secret" "jwt_secret" {
   name        = var.prefix != "" ? "${var.prefix}/jwt-secret-key" : "jwt-secret-key"
   description = "Secret key for signing JWTs, managed by Terraform."
-  # The actual value should be set manually in the AWS console for security.
-  # For now, we create an empty secret.
 }
 
-# 3. --- The Lambda Function ---
+resource "random_password" "jwt_secret_value" {
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "aws_secretsmanager_secret_version" "jwt_secret_initial_version" {
+  secret_id     = aws_secretsmanager_secret.jwt_secret.id
+  secret_string = random_password.jwt_secret_value.result
+}
+
+
 resource "aws_lambda_function" "user_api" {
   function_name = var.prefix != "" ? "${var.prefix}-user-api" : "user-api"
   role          = aws_iam_role.user_api.arn
@@ -33,15 +38,12 @@ resource "aws_lambda_function" "user_api" {
   environment {
     variables = {
       USERS_TABLE_NAME = aws_dynamodb_table.users.name
-      # This data source reads the secret value at apply time
-      JWT_SECRET_KEY   = data.aws_secretsmanager_secret_version.jwt_secret.secret_string
+      # This now correctly and safely reads the value from the version we just created.
+      JWT_SECRET_KEY   = aws_secretsmanager_secret_version.jwt_secret_initial_version.secret_string
     }
   }
 }
 
-data "aws_secretsmanager_secret_version" "jwt_secret" {
-  secret_id = aws_secretsmanager_secret.jwt_secret.id
-}
 
 
 resource "aws_iam_role" "user_api" {

@@ -90,14 +90,3 @@ resource "aws_lambda_permission" "matcher_api_gateway" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.matcher.execution_arn}/*/*"
 }
-
-resource "aws_apigatewayv2_api" "matcher" {
-  name          = var.prefix != "" ? "${var.prefix}-job-matcher-api" : "job-matcher-api"
-  protocol_type = "HTTP"
-}
-
-resource "aws_apigatewayv2_stage" "matcher" {
-  api_id      = aws_apigatewayv2_api.matcher.id
-  name        = "$default"
-  auto_deploy = true
-}

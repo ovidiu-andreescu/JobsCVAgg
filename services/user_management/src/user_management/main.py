@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
-
+import os
 from fastapi import FastAPI, HTTPException, Depends, status
 from pydantic import BaseModel, EmailStr
 from passlib.hash import bcrypt  
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 
+from user_management.schemas.auth import UserInDB
+from user_management.db.dynamodb import add_user, get_user_by_email
 
 app = FastAPI(title="User Management")
 
@@ -37,7 +39,7 @@ USERS: List[Dict[str, str]] = []
 
 
 # ------------------ JWT CONFIG ------------------
-SECRET_KEY = "change-me-in-env"   # pune în .env pentru producție
+SECRET_KEY = os.environ['JWT_SECRET_KEY']
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRES_MIN = 60
 
@@ -66,7 +68,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str]:
     except JWTError:
         raise credentials_exc
 
-    user = next((u for u in USERS if u["email"].lower() == email.lower()), None)
+    user = get_user_by_email(email)
     if not user:
         raise credentials_exc
     return user
@@ -80,18 +82,19 @@ def health():
 
 @app.post("/auth/register", response_model=PublicUser, status_code=201)
 def register_user(data: RegisterRequest):
-    email_lower = data.email.lower()
-    if any(u["email"].lower() == email_lower for u in USERS):
+    if get_user_by_email(data.email):
         raise HTTPException(status_code=409, detail="Email already registered")
 
     pwd_hash = bcrypt.hash(data.password)
-    USERS.append({"email": data.email, "password_hash": pwd_hash})
+    # USERS.append({"email": data.email, "password_hash": pwd_hash})
+    new_user = UserInDB(email=data.email.lower(), password_hash=pwd_hash)
+    add_user(new_user)
     return PublicUser(email=data.email)
 
 
 @app.post("/auth/login", response_model=TokenResponse)
 def login(data: LoginRequest):
-    user = next((u for u in USERS if u["email"].lower() == data.email.lower()), None)
+    user = get_user_by_email(data.email)
     if not user or not bcrypt.verify(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 

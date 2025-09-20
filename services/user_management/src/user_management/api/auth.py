@@ -5,7 +5,7 @@ import requests
 import os
 from uuid import uuid4
 
-from ..db.sqlite import (
+from user_management.db.dynamodb import (
     create_user,
     get_user_by_email,
     get_user_by_token,
@@ -75,14 +75,14 @@ def verify(token: str):
         raise HTTPException(status_code=400, detail="Invalid token")
     if u["is_verified"]:
         return {"verified": True, "message": "Already verified"}
-    mark_verified(u["id"])
+    mark_verified(u["email"])
     return {"verified": True}
 
 @router.post("/login")
 def login(p: LoginIn):
     email = p.email.strip().lower()
     u = get_user_by_email(email)
-    if not u or not bcrypt.verify(p.password, u["password"]):
+    if not u or not bcrypt.verify(p.password, u["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not u["is_verified"]:
         raise HTTPException(status_code=403, detail="Email not verified")

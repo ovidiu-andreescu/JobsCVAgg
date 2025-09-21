@@ -91,14 +91,3 @@ data "aws_iam_policy_document" "assume_lambda" {
   }
 }
 
-resource "aws_iam_role" "lambda" {
-  name               = var.prefix != "" ? "${var.prefix}-job-agg-lambda-role" : "job-agg-lambda-role"
-  assume_role_policy = data.aws_iam_policy_document.assume_lambda.json
-}
-
-
-resource "aws_iam_role_policy_attachment" "attach_dynamodb_write" {
-  role       = aws_iam_role.lambda.name
-  policy_arn = aws_iam_policy.dynamodb_jobs_write.arn
-}
-

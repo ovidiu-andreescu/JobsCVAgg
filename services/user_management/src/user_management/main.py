@@ -1,12 +1,16 @@
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
+import os
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Depends, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ValidationError
 from passlib.hash import bcrypt  
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 
+from user_management.schemas.auth import UserInDB
+from user_management.db.dynamodb import create_user, get_user_by_email
 
 app = FastAPI(title="User Management")
 
@@ -30,6 +34,8 @@ class TokenResponse(BaseModel):
 class PublicUser(BaseModel):
     email: EmailStr
 
+class CurrentUser(BaseModel):
+    email: EmailStr
 
 # ------------------ "BAZA DE DATE" ÎN MEMORIE ------------------
 # fiecare user: {"email": str, "password_hash": str}
@@ -37,7 +43,7 @@ USERS: List[Dict[str, str]] = []
 
 
 # ------------------ JWT CONFIG ------------------
-SECRET_KEY = "change-me-in-env"   # pune în .env pentru producție
+SECRET_KEY = os.environ['JWT_SECRET_KEY']
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRES_MIN = 60
 
@@ -52,7 +58,7 @@ def create_access_token(subject: str, expires_minutes: int = ACCESS_TOKEN_EXPIRE
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str]:
+def get_current_user(token: str = Depends(oauth2_scheme)) -> CurrentUser:
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -66,10 +72,13 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str]:
     except JWTError:
         raise credentials_exc
 
-    user = next((u for u in USERS if u["email"].lower() == email.lower()), None)
+    user = get_user_by_email(email)
     if not user:
         raise credentials_exc
-    return user
+    try:
+        return CurrentUser(email=user["email"] if isinstance(user, dict) else user.email)
+    except ValidationError:
+        raise credentials_exc
 
 
 # ------------------ ENDPOINTS ------------------
@@ -80,18 +89,30 @@ def health():
 
 @app.post("/auth/register", response_model=PublicUser, status_code=201)
 def register_user(data: RegisterRequest):
-    email_lower = data.email.lower()
-    if any(u["email"].lower() == email_lower for u in USERS):
+    if get_user_by_email(data.email):
         raise HTTPException(status_code=409, detail="Email already registered")
 
     pwd_hash = bcrypt.hash(data.password)
-    USERS.append({"email": data.email, "password_hash": pwd_hash})
+    verify_token = str(uuid4())
+
+    new_user = UserInDB(
+        email=data.email,
+        password_hash=pwd_hash,
+        is_verified=False,
+        verify_token=verify_token
+    )
+
+    try:
+        create_user(new_user)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Email already registered")
+
     return PublicUser(email=data.email)
 
 
 @app.post("/auth/login", response_model=TokenResponse)
 def login(data: LoginRequest):
-    user = next((u for u in USERS if u["email"].lower() == data.email.lower()), None)
+    user = get_user_by_email(data.email)
     if not user or not bcrypt.verify(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -100,5 +121,5 @@ def login(data: LoginRequest):
 
 
 @app.get("/auth/me", response_model=PublicUser)
-def me(current_user: Dict[str, str] = Depends(get_current_user)):
-    return PublicUser(email=current_user["email"])
+def me(current_user: CurrentUser = Depends(get_current_user)):
+    return PublicUser(email=current_user.email)

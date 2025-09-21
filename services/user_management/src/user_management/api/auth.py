@@ -4,13 +4,15 @@ from passlib.hash import bcrypt
 import requests
 import os
 from uuid import uuid4
+from fastapi import HTTPException
 
-from ..db.sqlite import (
+from ..db.dynamodb import (
     create_user,
     get_user_by_email,
     get_user_by_token,
     mark_verified,
 )
+from ..schemas.auth import UserInDB
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -28,15 +30,23 @@ class LoginIn(BaseModel):
 
 @router.post("/register")
 def register(p: RegisterIn):
-    email = p.email.strip().lower()
+    email: str = str(p.email).strip().lower()
+
     if get_user_by_email(email):
         raise HTTPException(status_code=409, detail="Email already registered")
 
     password_hash = bcrypt.hash(p.password)
     token = str(uuid4())
 
+    new_user = UserInDB(
+        email = email,
+        password_hash=password_hash,
+        is_verified=False,
+        verify_token=token
+    )
+
     try:
-        create_user(email=email, password_hash=password_hash, verify_token=token)
+        create_user(new_user)
     except ValueError:
         raise HTTPException(status_code=409, detail="Email already registered")
 
@@ -75,20 +85,18 @@ def verify(token: str):
         raise HTTPException(status_code=400, detail="Invalid token")
     if u["is_verified"]:
         return {"verified": True, "message": "Already verified"}
-    mark_verified(u["id"])
+    mark_verified(u["email"])
     return {"verified": True}
 
 @router.post("/login")
 def login(p: LoginIn):
-    email = p.email.strip().lower()
+    email = str(p.email).strip().lower()
     u = get_user_by_email(email)
-    if not u or not bcrypt.verify(p.password, u["password"]):
+    if not u or not bcrypt.verify(p.password, u["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not u["is_verified"]:
         raise HTTPException(status_code=403, detail="Email not verified")
     return {"ok": True, "email": email}
-
-from fastapi import HTTPException
 
 @router.get("/_debug/verify_link")
 def debug_verify_link(email: str):

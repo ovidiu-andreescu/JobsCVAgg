@@ -1,3 +1,5 @@
+from typing import Set, Optional
+
 from pydantic import BaseModel, EmailStr
 
 class RegisterRequest(BaseModel):
@@ -14,3 +16,10 @@ class PublicUser(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class UserInDB(BaseModel):
+    email: str
+    password_hash: str
+    is_verified: bool = False
+    verify_token: Optional[str] = None
+

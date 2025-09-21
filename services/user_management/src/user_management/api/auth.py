@@ -4,6 +4,7 @@ from passlib.hash import bcrypt
 import requests
 import os
 from uuid import uuid4
+from fastapi import HTTPException
 
 from ..db.dynamodb import (
     create_user,
@@ -87,8 +88,6 @@ def login(p: LoginIn):
     if not u["is_verified"]:
         raise HTTPException(status_code=403, detail="Email not verified")
     return {"ok": True, "email": email}
-
-from fastapi import HTTPException
 
 @router.get("/_debug/verify_link")
 def debug_verify_link(email: str):

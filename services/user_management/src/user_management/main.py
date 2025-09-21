@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import os
+from uuid import uuid4
+
 from fastapi import FastAPI, HTTPException, Depends, status
 from pydantic import BaseModel, EmailStr
 from passlib.hash import bcrypt  
@@ -87,8 +89,10 @@ def register_user(data: RegisterRequest):
 
     pwd_hash = bcrypt.hash(data.password)
     # USERS.append({"email": data.email, "password_hash": pwd_hash})
+    verify_token = str(uuid4())
     new_user = UserInDB(email=data.email.lower(), password_hash=pwd_hash)
-    create_user(new_user)
+    create_user(new_user, pwd_hash, verify_token)
+
     return PublicUser(email=data.email)
 
 

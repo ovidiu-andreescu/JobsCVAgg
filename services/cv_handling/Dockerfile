@@ -6,12 +6,13 @@ ENV PYTHONPATH="/app"
 
 COPY libs/common/requirements-common.txt ./requirements-common.txt
 COPY services/cv_handling/requirements.txt ./requirements-service.txt
+
 RUN pip install --no-cache-dir -r requirements-common.txt
 RUN pip install --no-cache-dir -r requirements-service.txt
 
-RUN python -m spacy download en_core_web_sm
+RUN python -m spacy download en_core_web_md
 
 COPY libs/ /app/libs
 COPY services/cv_handling/src/ /app/services/cv_handling/src
 
-CMD ["python", "services/cv_handling/src/handler_keywords.py"]
+CMD ["python", "handler_keywords.py"]

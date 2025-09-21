@@ -8,7 +8,7 @@ from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 
 from user_management.schemas.auth import UserInDB
-from user_management.db.dynamodb import add_user, get_user_by_email
+from user_management.db.dynamodb import create_user, get_user_by_email
 
 app = FastAPI(title="User Management")
 
@@ -88,7 +88,7 @@ def register_user(data: RegisterRequest):
     pwd_hash = bcrypt.hash(data.password)
     # USERS.append({"email": data.email, "password_hash": pwd_hash})
     new_user = UserInDB(email=data.email.lower(), password_hash=pwd_hash)
-    add_user(new_user)
+    create_user(new_user)
     return PublicUser(email=data.email)
 
 

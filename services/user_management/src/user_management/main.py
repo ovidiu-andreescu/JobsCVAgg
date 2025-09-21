@@ -4,7 +4,7 @@ import os
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Depends, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ValidationError
 from passlib.hash import bcrypt  
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
@@ -34,6 +34,8 @@ class TokenResponse(BaseModel):
 class PublicUser(BaseModel):
     email: EmailStr
 
+class CurrentUser(BaseModel):
+    email: EmailStr
 
 # ------------------ "BAZA DE DATE" ÎN MEMORIE ------------------
 # fiecare user: {"email": str, "password_hash": str}
@@ -56,7 +58,7 @@ def create_access_token(subject: str, expires_minutes: int = ACCESS_TOKEN_EXPIRE
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str]:
+def get_current_user(token: str = Depends(oauth2_scheme)) -> CurrentUser:
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -73,7 +75,10 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str]:
     user = get_user_by_email(email)
     if not user:
         raise credentials_exc
-    return user
+    try:
+        return CurrentUser(email=user["email"] if isinstance(user, dict) else user.email)
+    except ValidationError:
+        raise credentials_exc
 
 
 # ------------------ ENDPOINTS ------------------
@@ -90,7 +95,7 @@ def register_user(data: RegisterRequest):
     pwd_hash = bcrypt.hash(data.password)
     # USERS.append({"email": data.email, "password_hash": pwd_hash})
     verify_token = str(uuid4())
-    new_user = UserInDB(email=data.email.lower(), password_hash=pwd_hash)
+    new_user = UserInDB(email=data.email, password_hash=pwd_hash)
     create_user(new_user, pwd_hash, verify_token)
 
     return PublicUser(email=data.email)
@@ -107,5 +112,5 @@ def login(data: LoginRequest):
 
 
 @app.get("/auth/me", response_model=PublicUser)
-def me(current_user: Dict[str, str] = Depends(get_current_user)):
-    return PublicUser(email=current_user["email"])
+def me(current_user: CurrentUser = Depends(get_current_user)):
+    return PublicUser(email=current_user.email)

@@ -15,7 +15,7 @@ def create_user(email: str, password_hash: str, verify_token: str):
     try:
         _table.put_item(
             Item={
-                'email': email.lower(),
+                'email': email,
                 'password_hash': password_hash,
                 'is_verified': False,
                 'verify_token': verify_token,
@@ -27,7 +27,7 @@ def create_user(email: str, password_hash: str, verify_token: str):
 
 
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
-    response = _table.get_item(Key={'email': email.lower()})
+    response = _table.get_item(Key={'email': email})
     return response.get("Item")
 
 

@@ -18,7 +18,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 class UserInDB(BaseModel):
-    email: EmailStr
+    email: str
     password_hash: str
     is_verified: bool = False
     verify_token: Optional[str] = None

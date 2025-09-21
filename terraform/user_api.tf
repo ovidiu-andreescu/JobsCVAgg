@@ -38,7 +38,6 @@ resource "aws_lambda_function" "user_api" {
   environment {
     variables = {
       USERS_TABLE_NAME = aws_dynamodb_table.users.name
-      # This now correctly and safely reads the value from the version we just created.
       JWT_SECRET_KEY   = aws_secretsmanager_secret_version.jwt_secret_initial_version.secret_string
     }
   }

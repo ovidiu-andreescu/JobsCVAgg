@@ -12,6 +12,7 @@ from ..db.dynamodb import (
     get_user_by_token,
     mark_verified,
 )
+from ..schemas.auth import UserInDB
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -29,15 +30,23 @@ class LoginIn(BaseModel):
 
 @router.post("/register")
 def register(p: RegisterIn):
-    email = p.email.strip().lower()
+    email: str = str(p.email).strip().lower()
+
     if get_user_by_email(email):
         raise HTTPException(status_code=409, detail="Email already registered")
 
     password_hash = bcrypt.hash(p.password)
     token = str(uuid4())
 
+    new_user = UserInDB(
+        email = email,
+        password_hash=password_hash,
+        is_verified=False,
+        verify_token=token
+    )
+
     try:
-        create_user(email=email, password_hash=password_hash, verify_token=token)
+        create_user(new_user)
     except ValueError:
         raise HTTPException(status_code=409, detail="Email already registered")
 
@@ -81,7 +90,7 @@ def verify(token: str):
 
 @router.post("/login")
 def login(p: LoginIn):
-    email = p.email.strip().lower()
+    email = str(p.email).strip().lower()
     u = get_user_by_email(email)
     if not u or not bcrypt.verify(p.password, u["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")

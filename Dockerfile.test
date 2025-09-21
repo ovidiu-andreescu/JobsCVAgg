@@ -20,6 +20,8 @@ RUN set -eux; \
     done; \
   fi
 
+RUN python -m spacy download en_core_web_md
+
 COPY libs /app/libs
 COPY services /app/services
 COPY tests /app/tests

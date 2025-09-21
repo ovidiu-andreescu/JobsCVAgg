@@ -1,4 +1,4 @@
-from typing import Set
+from typing import Set, Optional
 
 from pydantic import BaseModel, EmailStr
 
@@ -18,6 +18,9 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 class UserInDB(BaseModel):
-    email: EmailStr
-    password_hash: str
-    keywords: Set[str] = set()
+    class UserInDB(BaseModel):
+        email: EmailStr
+        password_hash: str
+        is_verified: bool = False
+        verify_token: Optional[str] = None
+

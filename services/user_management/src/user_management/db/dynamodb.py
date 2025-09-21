@@ -2,6 +2,8 @@ import os
 import boto3
 from typing import Optional, Dict, Any
 
+from user_management.schemas.auth import UserInDB
+
 dynamodb = boto3.resource("dynamodb")
 
 USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME")
@@ -11,23 +13,19 @@ if not USERS_TABLE_NAME:
 _table = dynamodb.Table(USERS_TABLE_NAME)
 
 
-def create_user(email: str, password_hash: str, verify_token: str):
+def create_user(user: UserInDB):
     try:
+        item = user.model_dump()
+
         _table.put_item(
-            Item={
-                'email': email,
-                'password_hash': password_hash,
-                'is_verified': False,
-                'verify_token': verify_token,
-            },
+            Item=item,
             ConditionExpression='attribute_not_exists(email)'
         )
     except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
         raise ValueError("Email already registered")
 
-
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
-    response = _table.get_item(Key={'email': email})
+    response = _table.get_item(Key={'email': email.lower()})
     return response.get("Item")
 
 

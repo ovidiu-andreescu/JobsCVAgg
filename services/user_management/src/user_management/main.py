@@ -93,10 +93,19 @@ def register_user(data: RegisterRequest):
         raise HTTPException(status_code=409, detail="Email already registered")
 
     pwd_hash = bcrypt.hash(data.password)
-    # USERS.append({"email": data.email, "password_hash": pwd_hash})
     verify_token = str(uuid4())
-    new_user = UserInDB(email=data.email, password_hash=pwd_hash)
-    create_user(new_user, pwd_hash, verify_token)
+
+    new_user = UserInDB(
+        email=data.email,
+        password_hash=pwd_hash,
+        is_verified=False,
+        verify_token=verify_token
+    )
+
+    try:
+        create_user(new_user)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Email already registered")
 
     return PublicUser(email=data.email)
 

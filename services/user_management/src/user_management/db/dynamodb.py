@@ -1,7 +1,7 @@
 import os
 import boto3
 from typing import Optional, Dict, Any
-from boto3.dynamodb.conditions import Attr
+from boto3.dynamodb.conditions import Attr, Key
 from user_management.schemas.auth import UserInDB
 
 dynamodb = boto3.resource("dynamodb")
@@ -30,32 +30,32 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
 
 
 def get_user_by_token(token: str) -> Optional[Dict[str, Any]]:
-    from boto3.dynamodb.conditions import Attr
-
-    response = _table.scan(
-        FilterExpression=Attr('verify_token').eq(token)
+    # requires GSI: verify_token-index
+    resp = _table.query(
+        IndexName="verify_token-index",
+        KeyConditionExpression=Key("verify_token").eq(token),
+        Limit=1,
     )
-    items = response.get('Items', [])
+    items = resp.get("Items", [])
     return items[0] if items else None
 
 
 def mark_verified(email: str):
     _table.update_item(
         Key={'email': email.lower()},
-        UpdateExpression="SET is_verified = :verified",
-        ExpressionAttributeValues={':verified': True}
+        UpdateExpression="SET is_verified = :v",
+        ExpressionAttributeValues={':v': True},
     )
 
 
 def set_cv_keys_by_token(token: str, cv_key: str, kw_key: str) -> bool:
-    resp = _table.scan(FilterExpression=Attr('verify_token').eq(token))
-    items = resp.get('Items', [])
-    if not items:
+    u = get_user_by_token(token)
+    if not u:
         return False
-    email = items[0]['email'].lower()
+    email = u["email"].lower()
     _table.update_item(
         Key={'email': email},
         UpdateExpression="SET cv_pdf_key = :cv, cv_keywords_key = :kw",
-        ExpressionAttributeValues={':cv': cv_key, ':kw': kw_key}
+        ExpressionAttributeValues={':cv': cv_key, ':kw': kw_key},
     )
     return True

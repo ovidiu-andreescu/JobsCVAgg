@@ -7,8 +7,9 @@ resource "aws_dynamodb_table" "users" {
     name = "email"
     type = "S"
   }
+
   attribute {
-    name = "token"
+    name = "verify_token"
     type = "S"
   }
 

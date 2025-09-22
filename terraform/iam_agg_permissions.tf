@@ -47,7 +47,6 @@ resource "aws_iam_role_policy_attachment" "agg_secrets_attach" {
   policy_arn = aws_iam_policy.secrets.arn
 }
 
-# Optional schedule -> allow EventBridge to invoke aggregator
 resource "aws_lambda_permission" "events" {
   count         = var.schedule_expression != "" ? 1 : 0
   statement_id  = "AllowEventBridgeInvoke"

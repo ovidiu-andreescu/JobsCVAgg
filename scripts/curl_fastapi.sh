@@ -1,25 +1,25 @@
 # Login -> get access & refresh
-curl -X POST https://nikw8v4uu1.execute-api.eu-central-1.amazonaws.com/auth/register \
+curl -X POST https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"email":"you@example.com","password":"password"}'
 
-curl -X POST https://nikw8v4uu1.execute-api.eu-central-1.amazonaws.com/auth/login \
+curl -X POST https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"you@example.com","password":"password"}'
 
 # Use the access token to call protected routes
-curl https://nikw8v4uu1.execute-api.eu-central-1.amazonaws.com/auth/me \
+curl https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/auth/me \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 
-curl https://nikw8v4uu1.execute-api.eu-central-1.amazonaws.com/cv \
+curl https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/cv \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 
 {"access_token":"
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1NTg3MzB9.yvgOJgXu-EqW7mgzTBAE3GsmofnVyzHAfS3n94HJvhk
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1NzQ4NDd9.XOd7bjhayKv5lHo7PjSQAelXOVR1vIXH1Ox5zmIMmWo
 "
 ,"token_type":"bearer"}
 
-curl -i -X POST "https://nikw8v4uu1.execute-api.eu-central-1.amazonaws.com//cv/presign" \
+curl -i -X POST "https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/cv/presign" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"filename":"cv.pdf","content_type":"application/pdf"}'

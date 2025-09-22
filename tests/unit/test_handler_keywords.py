@@ -9,7 +9,7 @@ if SRC_PATH not in sys.path:
     sys.path.insert(0, SRC_PATH)
 
 # Import the main function from the handler script
-from services.cv_handling.src.handler_keywords import main
+from services.cv_handling.src.cv_handling.handler_keywords import main
 
 class TestMainHandlerKeywordsUnit(unittest.TestCase):
     """

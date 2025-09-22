@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from botocore.exceptions import ClientError
-from services.cv_handling.src.cv_upload import upload_cv_to_s3
+from services.cv_handling.src.cv_handling.cv_upload import upload_cv_to_s3
 
 def test_upload_cv_to_s3_success(tmp_path):
     # Test successful upload and presigned URL generation

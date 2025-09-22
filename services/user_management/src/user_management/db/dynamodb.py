@@ -1,7 +1,7 @@
 import os
 import boto3
 from typing import Optional, Dict, Any
-
+from boto3.dynamodb.conditions import Attr
 from user_management.schemas.auth import UserInDB
 
 dynamodb = boto3.resource("dynamodb")
@@ -42,8 +42,20 @@ def get_user_by_token(token: str) -> Optional[Dict[str, Any]]:
 def mark_verified(email: str):
     _table.update_item(
         Key={'email': email.lower()},
-        UpdateExpression="SET is_verified = :verified REMOVE verify_token",
-        ExpressionAttributeValues={
-            ':verified': True
-        }
+        UpdateExpression="SET is_verified = :verified",
+        ExpressionAttributeValues={':verified': True}
     )
+
+
+def set_cv_keys_by_token(token: str, cv_key: str, kw_key: str) -> bool:
+    resp = _table.scan(FilterExpression=Attr('verify_token').eq(token))
+    items = resp.get('Items', [])
+    if not items:
+        return False
+    email = items[0]['email'].lower()
+    _table.update_item(
+        Key={'email': email},
+        UpdateExpression="SET cv_pdf_key = :cv, cv_keywords_key = :kw",
+        ExpressionAttributeValues={':cv': cv_key, ':kw': kw_key}
+    )
+    return True

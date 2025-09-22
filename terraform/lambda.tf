@@ -1,4 +1,4 @@
-resource "aws_lambda_function" "this" {
+resource "aws_lambda_function" "aggregator" {
   function_name = var.prefix != "" ? "${var.prefix}-job-aggregator" : "job-aggregator"
 
   role          = aws_iam_role.lambda.arn
@@ -31,7 +31,6 @@ resource "aws_lambda_function" "matcher" {
 
   environment {
     variables = {
-      # Pass the name of the jobs table for the storage module to read
       JOBS_TABLE_NAME = aws_dynamodb_table.jobs.name
     }
   }
@@ -39,7 +38,7 @@ resource "aws_lambda_function" "matcher" {
 
 resource "aws_cloudwatch_event_rule" "agg" {
   count               = var.schedule_expression != "" ? 1 : 0
-  name                = "${aws_lambda_function.this.function_name}-schedule"
+  name                = "${aws_lambda_function.aggregator.function_name}-schedule"
   schedule_expression = var.schedule_expression
 }
 
@@ -47,14 +46,14 @@ resource "aws_cloudwatch_event_target" "agg" {
   count     = var.schedule_expression != "" ? 1 : 0
   rule      = aws_cloudwatch_event_rule.agg[0].name
   target_id = "lambda"
-  arn       = aws_lambda_function.this.arn
+  arn       = aws_lambda_function.aggregator.arn
 }
 
 resource "aws_lambda_permission" "events" {
   count         = var.schedule_expression != "" ? 1 : 0
   statement_id  = "AllowEventBridgeInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.this.function_name
+  function_name = aws_lambda_function.aggregator.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.agg[0].arn
 }

@@ -8,6 +8,10 @@ resource "aws_secretsmanager_secret_version" "adzuna_app_id_version" {
   secret_string = var.secrets["adzuna_app_id"]
 }
 
+resource "aws_secretsmanager_secret" "cv_s3_bucket" {
+  name        = var.prefix != "" ? "${var.prefix}/cv_s3_bucket" : "cv_s3_bucket"
+  description = "CV S3 Bucket, managed by Terraform."
+}
 
 
 resource "aws_secretsmanager_secret" "adzuna_app_key" {
@@ -25,6 +29,7 @@ locals {
   secret_arn_patterns = [
     replace(aws_secretsmanager_secret.adzuna_app_id.arn, "/secret:[^:]+$/", "secret:*"),
     replace(aws_secretsmanager_secret.adzuna_app_key.arn, "/secret:[^:]+$/", "secret:*"),
+    replace(aws_secretsmanager_secret.cv_s3_bucket.arn, "/secret:[^:]+$/", "secret:*")
   ]
 }
 

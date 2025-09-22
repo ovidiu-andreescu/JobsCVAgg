@@ -43,7 +43,6 @@ resource "aws_iam_policy" "dynamodb_jobs_write" {
         "dynamodb:UpdateItem",
         "dynamodb:BatchWriteItem"
       ],
-      # It can only write to the specific 'jobs' table.
       Resource  = aws_dynamodb_table.jobs.arn
     }]
   })
@@ -52,6 +51,52 @@ resource "aws_iam_policy" "dynamodb_jobs_write" {
 resource "aws_iam_role_policy_attachment" "attach_dynamodb_write" {
   role       = aws_iam_role.lambda.name
   policy_arn = aws_iam_policy.dynamodb_jobs_write.arn
+}
+
+data "aws_iam_policy_document" "assume_lambda" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+    type = "Service"
+    identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "lambda_policy" {
+  statement {
+    sid = "Logs"
+    actions = [
+    "logs:CreateLogGroup",
+    "logs:CreateLogStream",
+    "logs:PutLogEvents"
+    ]
+    resources = ["*"]
+  }
+
+
+  statement {
+    sid = "S3"
+    actions = [
+    "s3:PutObject",
+    "s3:GetObject",
+    "s3:ListBucket"
+    ]
+    resources = [
+    aws_s3_bucket.cv_uploads.arn,
+    "${aws_s3_bucket.cv_uploads.arn}/*"
+    ]
+  }
+
+
+  statement {
+    sid = "Secrets"
+    actions = [
+    "secretsmanager:GetSecretValue",
+    "secretsmanager:DescribeSecret"
+    ]
+    resources = [aws_secretsmanager_secret.cv_s3_bucket.arn]
+    }
 }
 
 resource "aws_iam_role" "matcher" {
@@ -81,13 +126,17 @@ resource "aws_iam_role_policy_attachment" "matcher_dynamodb_read_attach" {
   policy_arn = aws_iam_policy.matcher_dynamodb_read.arn
 }
 
-data "aws_iam_policy_document" "assume_lambda" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
-    }
-  }
+resource "aws_iam_role" "cv_upload" {
+  name               = var.prefix != "" ? "${var.prefix}-cv-upload-role" : "cv-upload-role"
+  assume_role_policy = data.aws_iam_policy_document.assume_lambda.json
 }
 
+resource "aws_iam_policy" "lambda_misc" {
+  name   = var.prefix != "" ? "${var.prefix}-lambda-misc" : "lambda-misc"
+  policy = data.aws_iam_policy_document.lambda_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_misc_attach_cv_upload" {
+  role       = aws_iam_role.cv_upload.name
+  policy_arn = aws_iam_policy.lambda_misc.arn
+}

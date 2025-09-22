@@ -37,11 +37,15 @@ variable "schedule_expression" {
 variable "lambda_matcher_image_uri" {
   description = "The full URI of the Docker image in ECR for the job-matcher function."
   type        = string
-  # No default value - this must be provided for each deployment.
 }
 
 variable "lambda_user_api_image_uri" {
   description = "The full URI of the Docker image in ECR for the user-api function."
+  type        = string
+}
+
+variable "lambda_cv_upload_image_uri" {
+  description = "The full URI of the Docker image in ECR for the cv-upload function."
   type        = string
 }
 

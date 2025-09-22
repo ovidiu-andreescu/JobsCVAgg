@@ -42,7 +42,7 @@ def main():
     except Exception as e:
         print (f"Error during processing: {e}")
         raise e
-        
+
 if __name__ == "__main__":
     main()
 

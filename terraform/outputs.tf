@@ -1,11 +1,11 @@
 output "lambda_function_name" {
   description = "The name of the created Lambda function."
-  value       = aws_lambda_function.this.function_name
+  value       = aws_lambda_function.aggregator.function_name
 }
 
 output "lambda_function_arn" {
   description = "The ARN of the created Lambda function."
-  value       = aws_lambda_function.this.arn
+  value       = aws_lambda_function.aggregator.arn
 }
 
 output "dynamodb_table_name" {
@@ -30,3 +30,9 @@ output "user_api_endpoint" {
   description = "The invocation URL for the User API."
   value       = aws_apigatewayv2_api.user_api.api_endpoint
 }
+
+output "bucket_name" {
+  value = aws_s3_bucket.cv_uploads.bucket
+  description = "S3 bucket for CV PDFs + keywords JSON"
+}
+

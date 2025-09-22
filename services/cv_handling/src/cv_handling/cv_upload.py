@@ -1,9 +1,21 @@
+from xml.dom.minidom import Attr
+
 import boto3
+from boto3.dynamodb.conditions import Attr, Key
 import os
 import base64
 import json
 from botocore.exceptions import BotoCoreError, ClientError
 from libs.common.src.agg_common import secrets_loader
+import logging
+from cv_parser import parse_cv_from_s3
+from cv_keywords import extract_keywords, upload_keywords_to_s3
+
+USERS_TABLE = os.getenv("USERS_TABLE_NAME")
+USERS_GSI_VERIFY_TOKEN = os.getenv("USERS_GSI_VERIFY_TOKEN", "users_by_verify_token")  # optional
+
+log = logging.getLogger()
+log.setLevel(logging.INFO)
 
 def upload_cv_to_s3(s3_client, file_path: str, bucket_name: str, object_name: str) -> str:
     """
@@ -82,3 +94,67 @@ def lambda_handler_upload(event, context):
             })
         }
 
+def _update_user_with_cv_keys(token: str, cv_key: str, kw_key: str) -> bool:
+    if not USERS_TABLE:
+        return False
+
+    ddb = boto3.resource("dynamodb")
+    table = ddb.Table(USERS_TABLE)
+
+    email = None
+    try:
+        resp = table.query(
+            IndexName = USERS_GSI_VERIFY_TOKEN,
+            KeyConditionExpression = Key("verify_token").eq(token),
+            Limit = 1
+        )
+        items = resp.get("Items", [])
+
+        if items:
+            email = items[0]["email"].lower()
+
+    except Exception as e:
+        log.info(f"GSI '{USERS_GSI_VERIFY_TOKEN}' not used ({e}). Falling back to Scan.")
+
+    if not email:
+        resp = table.scan(FilterExpression=Attr("verify_token").eq(token))
+        items = resp.get("Items", [])
+        if not items:
+            return False
+        email = items[0]["email"].lower()
+
+    table.update_item(
+        Key={"email": email},
+        UpdateExpression="SET cv_pdf_key = :cv, cv_keywords_key = :kw",
+        ExpressionAttributeValues={":cv": cv_key, ":kw": kw_key},
+    )
+
+    return True
+
+
+def process(bucket_name: str, object_key: str):
+    s3 = boto3.resource("s3")
+    log.info(f"Processing s3://{bucket_name}/{object_key}")
+
+    log.info(f"Processing s3://{bucket_name}/{object_key}")
+    text = parse_cv_from_s3(s3, bucket_name, object_key)
+    keywords = extract_keywords(text)
+
+    base = object_key.split("/")[-1]
+    if base.lower().endswith(".pdf"):
+        base = base[:-4]
+    keywords_key = f"cv_keywords/{base}_keywords.json"
+
+    upload_keywords_to_s3(s3, bucket_name, keywords_key, keywords)
+    log.info(f"Wrote keywords to s3://{bucket_name}/{keywords_key}")
+
+    token = None
+    parts = object_key.split("/")
+    if len(parts) >= 3 and parts[0] == "cv_uploads":
+        token = parts[1]
+
+    if token and USERS_TABLE:
+        ok = _update_user_with_cv_keys(token, object_key, keywords_key)
+        log.info(f"User table update for token={token}: {'ok' if ok else 'not found'}")
+
+    return {"bucket": bucket_name, "keywords_key": keywords_key, "token": token}

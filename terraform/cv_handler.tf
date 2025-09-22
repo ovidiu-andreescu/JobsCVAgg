@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "cv_uploads" {
-  bucket = var.prefix != "" ? "${var.prefix}-cv_upload" : "cv_upload"
+  bucket = var.prefix != "" ? "${var.prefix}-cv-upload" : "cv-upload"
 
   tags = {
     Project   = "CVHandling"
@@ -47,7 +47,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "cv" {
 }
 
 resource "aws_lambda_function" "cv_upload" {
-  function_name = var.prefix != "" ? "${var.prefix}-cv_upload" : "cv_upload"
+  function_name = var.prefix != "" ? "${var.prefix}-cv-upload" : "cv-upload"
   role          = aws_iam_role.cv_upload.arn
   package_type  = "Image"
   image_uri     = var.lambda_cv_upload_image_uri
@@ -58,7 +58,6 @@ resource "aws_lambda_function" "cv_upload" {
   environment {
     variables = {
       CV_S3_BUCKET = aws_s3_bucket.cv_uploads.bucket
-      AWS_REGION   = var.region
     }
   }
 }

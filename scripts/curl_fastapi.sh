@@ -15,5 +15,6 @@ curl https://nikw8v4uu1.execute-api.eu-central-1.amazonaws.com/cv \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 
 {"access_token":"
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1NDY1Njh9.iIJas12cZsfMv2BJQ3TJ1dPlkJMBXS594Is6uphGVoo
-","token_type":"bearer"}
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1NTc1Mjl9.S-vz0-5gZHRPoNz1S9g6tYRBNbpz4vcQ_wwqUztfSqE
+"
+,"token_type":"bearer"}

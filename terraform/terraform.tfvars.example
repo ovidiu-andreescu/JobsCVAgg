@@ -1,0 +1,53 @@
+#############################################
+# dev.tfvars  — example variables
+#############################################
+
+# --- Core ---
+region = "eu-central-1"
+prefix = "dev"
+
+# --- Images (from your ECR) ---
+lambda_jobs_agg_image_uri  = "038583382098.dkr.ecr.eu-central-1.amazonaws.com/job-aggregator:a4b8024"
+lambda_user_api_image_uri  = "038583382098.dkr.ecr.eu-central-1.amazonaws.com/user_management:c054925"
+lambda_matcher_image_uri   = "038583382098.dkr.ecr.eu-central-1.amazonaws.com/job-matcher:8acf9ab"
+lambda_cv_upload_image_uri = "038583382098.dkr.ecr.eu-central-1.amazonaws.com/cv_handling:183ba9e"
+
+# --- Schedules ---
+schedule_expression = "rate(24 hours)"  # aggregator, etc.
+
+# --- App env (non-secret) ---
+lambda_env = {
+  ADZUNA_COUNTRY = "ro"
+  # add other plain envs here if you need
+}
+
+
+dev_jwt_key = "dev-only-JWT-key-change-me"
+
+secrets = {
+  adzuna_app_id  = ""
+  adzuna_app_key = ""
+}
+
+# --- Names (helps make buckets/tables predictable) ---
+users_table_name = "dev-users"
+jobs_table_name  = "dev-jobs"
+cv_bucket_name   = "dev-cv-uploads-038583382098"
+
+# --- Logging/Monitoring ---
+log_retention_days   = 14
+alarm_sns_topic_arn  = ""     # set to an SNS topic ARN if you want alerts
+
+# --- Optional security controls (leave empty if not used) ---
+permissions_boundary_arn = ""
+lambda_env_kms_key_arn   = ""  # if you encrypt Lambda env vars with a CMK
+
+# --- Optional VPC wiring (leave empty if not using VPC) ---
+lambda_subnet_ids = []
+lambda_sg_ids     = []
+
+# --- API/CORS (only needed if you upload CVs from a browser) ---
+allowed_cors_origins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+]

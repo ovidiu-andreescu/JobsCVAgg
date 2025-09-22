@@ -126,7 +126,6 @@ def get_my_cv(user=Depends(current_user)):
     if not u or not u.get("is_verified"):
         raise HTTPException(status_code=403, detail="Invalid or unverified user")
 
-    # Return just the keys; you can presign GETs on a separate endpoint if you want
     return {
         "cv_pdf_key": u.get("cv_pdf_key"),
         "cv_keywords_key": u.get("cv_keywords_key"),

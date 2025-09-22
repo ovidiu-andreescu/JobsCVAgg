@@ -17,7 +17,7 @@ variable "secrets" {
   default     = {}
 }
 
-variable "lambda_image_uri" {
+variable "lambda_jobs_agg_image_uri" {
   description = "The full URI of the Docker image in ECR for the Lambda function."
   type        = string
 }

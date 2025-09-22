@@ -132,3 +132,6 @@ def get_my_cv(user=Depends(current_user)):
         "cv_keywords_key": u.get("cv_keywords_key"),
         "updated_at": u.get("updated_at"),
     }
+
+@router.get("/ping")
+def ping(): return {"ok": True}

@@ -4,8 +4,8 @@ from passlib.hash import bcrypt
 import requests
 import os
 from uuid import uuid4
-from fastapi import HTTPException
-
+from fastapi import HTTPException, Depends
+from ..auth_deps import CurrentUser, get_current_user
 from ..db.dynamodb import (
     create_user,
     get_user_by_email,
@@ -111,3 +111,7 @@ def debug_verify_link(email: str):
         "verified": False,
         "url": f"{PUBLIC_BASE_URL}/auth/verify?token={token}" if token else None
     }
+
+@router.get("/me")
+def me(current_user: CurrentUser = Depends(get_current_user)):
+    return {"email": current_user.email}

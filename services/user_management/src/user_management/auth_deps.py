@@ -45,7 +45,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRES_MIN = 60
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-
+bearer = HTTPBearer(auto_error=True)
 
 def create_access_token(subject: str, minutes: int = ACCESS_TOKEN_EXPIRES_MIN) -> str:
     now = datetime.utcnow()

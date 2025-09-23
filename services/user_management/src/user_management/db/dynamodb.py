@@ -13,7 +13,6 @@ if not USERS_TABLE_NAME:
 
 _table = dynamodb.Table(USERS_TABLE_NAME)
 
-
 def create_user(user: UserInDB):
     try:
         item = user.model_dump()

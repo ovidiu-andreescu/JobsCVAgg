@@ -5,13 +5,14 @@ import requests
 import os
 from uuid import uuid4
 from fastapi import HTTPException, Depends
-from ..auth_deps import CurrentUser, get_current_user
+from ..auth_deps import CurrentUser, get_current_user, PublicUser, create_access_token, TokenResponse
 from ..db.dynamodb import (
     create_user,
     get_user_by_email,
     get_user_by_token,
     mark_verified,
 )
+from ..models import user
 from ..schemas.auth import UserInDB
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -76,7 +77,7 @@ Daca nu tu ai initiat, ignora acest mesaj.
         # nu blocam inregistrarea daca emailul esueaza
         print(f"[WARN] notification failed: {e}")
 
-    return {"ok": True}
+    return PublicUser(email=p.email)
 
 @router.get("/verify")
 def verify(token: str):
@@ -94,9 +95,10 @@ def login(p: LoginIn):
     u = get_user_by_email(email)
     if not u or not bcrypt.verify(p.password, u["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    # if not u["is_verified"]:
-    #     raise HTTPException(status_code=403, detail="Email not verified")
-    return {"ok": True, "email": email}
+    if not u["is_verified"]:
+        raise HTTPException(status_code=403, detail="Email not verified")
+    token = create_access_token(subject=u["email"])
+    return TokenResponse(access_token=token)
 
 @router.get("/_debug/verify_link")
 def debug_verify_link(email: str):

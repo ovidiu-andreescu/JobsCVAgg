@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr, ValidationError
 from passlib.hash import bcrypt
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
-
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from user_management.schemas.auth import UserInDB
 from user_management.db.dynamodb import create_user, get_user_by_email
 from datetime import datetime, timedelta
@@ -47,32 +47,47 @@ ACCESS_TOKEN_EXPIRES_MIN = 60
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-def create_access_token(subject: str, expires_minutes: int = ACCESS_TOKEN_EXPIRES_MIN) -> str:
-    to_encode = {
+def create_access_token(subject: str, minutes: int = ACCESS_TOKEN_EXPIRES_MIN) -> str:
+    now = datetime.utcnow()
+    payload = {
         "sub": subject,
-        "exp": datetime.utcnow() + timedelta(minutes=expires_minutes),
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=minutes)).timestamp()),
+        "type": "access"
     }
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-
-def get_current_user(token: str = Depends(oauth2_scheme)) -> CurrentUser:
-    credentials_exc = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+def decode_token(token: str) -> dict:
+    payload =  jwt.decode(
+        token,
+        SECRET_KEY,
+        algorithms=[ALGORITHM],
+        options={"require": ["exp", "iat", "sub", "type"]},
     )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: Optional[str] = payload.get("sub")
-        if not email:
-            raise credentials_exc
-    except JWTError:
-        raise credentials_exc
 
-    user = get_user_by_email(email)
-    if not user:
-        raise credentials_exc
+    if payload.get("type") != "access":
+        raise jwt.InvalidTokenError("Not an access token")
+    return payload
+
+
+def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> CurrentUser:
+    token = creds.credentials
     try:
-        return CurrentUser(email=user["email"] if isinstance(user, dict) else user.email)
-    except ValidationError:
-        raise credentials_exc
+        payload = decode_token(token)
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Not an access token")
+
+        email = payload["sub"]
+        user = get_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        if not user.get("is_verified", False):
+            raise HTTPException(status_code=403, detail="Email not verified")
+
+        return CurrentUser(email=email)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+

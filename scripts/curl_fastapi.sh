@@ -28,4 +28,4 @@ curl -i -X POST "https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/cv/pr
   "https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/me/cv/presign" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"filename":"cv.pdf","content_type":"application/pdf"}')
+  -d '{"filename":"cv.pdf","content_type":"application/pdf"}'

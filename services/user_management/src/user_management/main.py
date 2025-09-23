@@ -12,7 +12,14 @@ from fastapi.security import OAuth2PasswordBearer
 from user_management.schemas.auth import UserInDB
 from user_management.db.dynamodb import create_user, get_user_by_email
 
+from .api.auth import router as auth_router
+from .api.cv import router as cv_router
 app = FastAPI(title="User Management")
+
+app.include_router(auth_router)
+
+app.include_router(cv_router)
+
 
 
 # ------------------ MODELE ------------------

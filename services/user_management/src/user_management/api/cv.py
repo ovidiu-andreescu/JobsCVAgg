@@ -31,27 +31,14 @@ def _s3_bucket():
     return s3, bucket
 
 
-@router.post("/presign", response_model=PresignOut)
 @router.post("/presign/", response_model=PresignOut)
 @router.post("/presign", response_model=PresignOut)
 def presign(p: PresignIn, current_user: CurrentUser = Depends(get_current_user)):
-    """
-    Returns a presigned POST for direct S3 upload. Namespaces by a stable user identifier.
-    """
     try:
-        s3, bucket = _s3_bucket()
-
-        def _get(u, name):
-            return getattr(u, name, None) if hasattr(u, name) else u.get(name)
-
-        user_ns = _get(current_user, "id") or _get(current_user, "user_id") \
-                  or _get(current_user, "token") or _get(current_user, "verify_token") \
-                  or _get(current_user, "email")
-
-        if not user_ns:
-            raise RuntimeError("no stable user identifier on current_user")
-
+        s3, bucket = _s3_and_bucket()
+        user_ns = current_user.email  # or an internal user_id if you have one
         key = f"uploads/{user_ns}/{p.filename}"
+
         fields = {"Content-Type": p.content_type}
         conditions = [
             {"Content-Type": p.content_type},
@@ -67,10 +54,10 @@ def presign(p: PresignIn, current_user: CurrentUser = Depends(get_current_user))
             ExpiresIn=300,
         )
         return {"key": key, "url": presigned["url"], "fields": presigned["fields"]}
-
     except Exception as e:
         print(f"[presign] {type(e).__name__}: {e}", flush=True)
         raise HTTPException(status_code=500, detail="presign_failed")
+
 @router.get("/ping")
 def ping():
     return {"ok": True}

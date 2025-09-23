@@ -35,3 +35,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "cv" {
     expiration { days = 365 }
   }
 }
+
+resource "aws_s3_bucket_cors_configuration" "cv_cors" {
+  bucket = aws_s3_bucket.cv_uploads.id
+
+  cors_rule {
+    id              = "frontend-upload"
+    allowed_methods = ["POST", "PUT", "GET", "HEAD"]
+    allowed_origins = ["*"]
+    allowed_headers = ["*"]
+    expose_headers  = ["ETag", "Location", "x-amz-request-id", "x-amz-version-id"]
+    max_age_seconds = 3000
+  }
+}

@@ -17,12 +17,3 @@ resource "aws_lambda_function" "user_api" {
   }
 }
 
-resource "aws_iam_role" "user_api" {
-  name               = var.prefix != "" ? "${var.prefix}-user-api-role" : "user-api-role"
-  assume_role_policy = data.aws_iam_policy_document.assume_lambda.json
-}
-
-resource "aws_iam_role_policy_attachment" "user_api_cwlogs" {
-  role       = aws_iam_role.user_api.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}

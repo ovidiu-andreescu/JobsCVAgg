@@ -15,7 +15,7 @@ curl https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/cv \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 
 {"access_token":"
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1OTczMjZ9.foFwGxrGBvAklxOTN79Gdu2g6xuOAcz6xRgZtywV_QI
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTg2MTEzMTAsImV4cCI6MTc1ODYxNDkxMCwidHlwZSI6ImFjY2VzcyJ9.UfpwKDwjUBHOfBnGcNgx-yzHX_Pl1kXS4TfertGjRX
 "
 ,"token_type":"bearer"}
 
@@ -29,3 +29,7 @@ curl -i -X POST "https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/cv/pr
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"filename":"cv.pdf","content_type":"application/pdf"}'
+
+curl -X POST https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/auth/_debug/mark-verified \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"test@example.com"}'

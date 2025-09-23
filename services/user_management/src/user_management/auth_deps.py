@@ -85,8 +85,8 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> C
         user = get_user_by_email(email)
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        if not user.get("is_verified", False):
-            raise HTTPException(status_code=403, detail="Email not verified")
+        # if not user.get("is_verified", False):
+        #     raise HTTPException(status_code=403, detail="Email not verified")
 
         return CurrentUser(email=email)
     except HTTPException:

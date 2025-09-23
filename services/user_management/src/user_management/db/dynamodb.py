@@ -41,6 +41,16 @@ def get_user_by_token(token: str) -> Optional[Dict[str, Any]]:
     items = resp.get("Items", [])
     return items[0] if items else None
 
+def get_user_by_verify_token(token: str) -> dict | None:
+    resp = _table().scan(
+        FilterExpression="verify_token = :t",
+        ExpressionAttributeValues={":t": token},
+        ProjectionExpression="#e, is_verified, verify_token",
+        ExpressionAttributeNames={"#e": "email"},
+    )
+    items = resp.get("Items", [])
+    return items[0] if items else None
+
 def dep_user_from_token(request: Request, x_user_token: str = Header(None, alias="X-User-Token")):
     token = x_user_token or request.query_params.get("token")
     if not token:

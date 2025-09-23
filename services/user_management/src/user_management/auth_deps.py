@@ -34,6 +34,10 @@ class PublicUser(BaseModel):
 class CurrentUser(BaseModel):
     email: EmailStr
 
+class DebugVerifyIn(BaseModel):
+    email: EmailStr | None = None
+    token: str | None = None
+
 # ------------------ "BAZA DE DATE" ÎN MEMORIE ------------------
 # fiecare user: {"email": str, "password_hash": str}
 USERS: List[Dict[str, str]] = []
@@ -89,5 +93,4 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> C
         raise
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-
 

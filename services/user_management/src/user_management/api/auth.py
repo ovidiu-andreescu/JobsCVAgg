@@ -5,12 +5,12 @@ import requests
 import os
 from uuid import uuid4
 from fastapi import HTTPException, Depends
-from ..auth_deps import CurrentUser, get_current_user, PublicUser, create_access_token, TokenResponse
+from ..auth_deps import CurrentUser, get_current_user, PublicUser, create_access_token, TokenResponse, DebugVerifyIn
 from ..db.dynamodb import (
     create_user,
     get_user_by_email,
     get_user_by_token,
-    mark_verified,
+    mark_verified, get_user_by_verify_token,
 )
 from ..models import user
 from ..schemas.auth import UserInDB
@@ -113,6 +113,28 @@ def debug_verify_link(email: str):
         "verified": False,
         "url": f"{PUBLIC_BASE_URL}/auth/verify?token={token}" if token else None
     }
+
+@router.post("/_debug/mark-verified", response_model=PublicUser)
+def verify_debug(p: DebugVerifyIn):
+    # if not ALLOW_DEBUG_VERIFY:
+    #     raise HTTPException(status_code=403, detail="Debug verify disabled")
+
+    if not p.email and not p.token:
+        raise HTTPException(status_code=400, detail="Provide email or token")
+
+    if p.email:
+        user = get_user_by_email(str(p.email).strip().lower())
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        mark_verified(user["email"])
+        return PublicUser(email=user["email"])
+
+    # by token
+    user = get_user_by_verify_token(p.token)
+    if not user:
+        raise HTTPException(status_code=404, detail="Token not found")
+    mark_verified(user["email"])
+    return PublicUser(email=user["email"])
 
 @router.get("/me")
 def me(current_user: CurrentUser = Depends(get_current_user)):

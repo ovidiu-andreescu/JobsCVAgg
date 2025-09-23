@@ -11,4 +11,4 @@ RUN pip install --no-cache-dir -r \
 COPY services/user_management/src .
 COPY libs/common/src .
 
-CMD [ "user_management.handler.handler" ]
+CMD [ "user_management.main.handler" ]

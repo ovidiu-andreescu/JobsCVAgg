@@ -12,6 +12,19 @@ from fastapi.security import OAuth2PasswordBearer
 from user_management.schemas.auth import UserInDB
 from user_management.db.dynamodb import create_user, get_user_by_email
 
+from .api.auth import router as auth_router
+from .api.cv import router as cv_router
+
+from mangum import Mangum
+
+app = FastAPI(title="User Management")
+
+app.include_router(auth_router)
+
+app.include_router(cv_router)
+
+
+
 # ------------------ MODELE ------------------
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -78,45 +91,19 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> CurrentUser:
         raise credentials_exc
 
 
-# ------------------ ENDPOINTS ------------------
+# ---------- health ----------
 @app.get("/")
 def health():
     return {"status": "ok"}
 
+# ------------------ ENDPOINTS ------------------
 
-@app.post("/auth/register", response_model=PublicUser, status_code=201)
-def register_user(data: RegisterRequest):
-    if get_user_by_email(data.email):
-        raise HTTPException(status_code=409, detail="Email already registered")
+from user_management.api.auth import router as auth_router   # see note below
+app.include_router(auth_router)
 
-    pwd_hash = bcrypt.hash(data.password)
-    verify_token = str(uuid4())
+# ---------- cv endpoints ----------
+from user_management.api.cv import router as cv_router       # see note below
+app.include_router(cv_router)
 
-    new_user = UserInDB(
-        email=data.email,
-        password_hash=pwd_hash,
-        is_verified=False,
-        verify_token=verify_token
-    )
-
-    try:
-        create_user(new_user)
-    except ValueError:
-        raise HTTPException(status_code=409, detail="Email already registered")
-
-    return PublicUser(email=data.email)
-
-
-@app.post("/auth/login", response_model=TokenResponse)
-def login(data: LoginRequest):
-    user = get_user_by_email(data.email)
-    if not user or not bcrypt.verify(data.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    token = create_access_token(subject=user["email"])
-    return TokenResponse(access_token=token)
-
-
-@app.get("/auth/me", response_model=PublicUser)
-def me(current_user: CurrentUser = Depends(get_current_user)):
-    return PublicUser(email=current_user.email)
+# ---------- lambda handler ----------
+handler = Mangum(app)

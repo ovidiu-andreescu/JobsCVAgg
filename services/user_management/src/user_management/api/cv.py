@@ -1,12 +1,14 @@
-# user_management/api_cv.py  (new file or add to your /auth router module)
-import os
+# user_management/api/cv.py
+import os, boto3
 from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-import boto3
 from user_management.main import CurrentUser, get_current_user
 
 router = APIRouter(prefix="/me/cv", tags=["me"])
+
+@router.get("/ping")
+def ping(): return {"ok": True}
 
 class PresignIn(BaseModel):
     filename: str
@@ -25,19 +27,16 @@ def _require(name: str) -> str:
     return v
 
 @lru_cache(maxsize=1)
-def _s3_bucket():
-    s3 = boto3.resource("s3")
-    bucket = _require("CV_S3_BUCKET")
-    return s3, bucket
+def _s3_and_bucket():
+    s3 = boto3.client("s3", region_name=os.getenv("AWS_REGION", "eu-central-1"))
+    return s3, _require("CV_S3_BUCKET")
 
-
-@router.post("/presign/", response_model=PresignOut)
 @router.post("/presign", response_model=PresignOut)
+@router.post("/presign/", response_model=PresignOut)  # tolerate trailing slash
 def presign(p: PresignIn, current_user: CurrentUser = Depends(get_current_user)):
     try:
         s3, bucket = _s3_and_bucket()
-        user_ns = current_user.email  # or an internal user_id if you have one
-        key = f"uploads/{user_ns}/{p.filename}"
+        key = f"uploads/{current_user.email}/{p.filename}"
 
         fields = {"Content-Type": p.content_type}
         conditions = [
@@ -45,19 +44,10 @@ def presign(p: PresignIn, current_user: CurrentUser = Depends(get_current_user))
             ["content-length-range", 1, p.max_size],
             {"bucket": bucket},
         ]
-
         presigned = s3.generate_presigned_post(
-            Bucket=bucket,
-            Key=key,
-            Fields=fields,
-            Conditions=conditions,
-            ExpiresIn=300,
+            Bucket=bucket, Key=key, Fields=fields, Conditions=conditions, ExpiresIn=300
         )
         return {"key": key, "url": presigned["url"], "fields": presigned["fields"]}
     except Exception as e:
         print(f"[presign] {type(e).__name__}: {e}", flush=True)
         raise HTTPException(status_code=500, detail="presign_failed")
-
-@router.get("/ping")
-def ping():
-    return {"ok": True}

@@ -3,11 +3,11 @@ import requests
 BASE_URL = "https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com"
 access_token = \
     (" \
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1NzQ4NDd9.XOd7bjhayKv5lHo7PjSQAelXOVR1vIXH1Ox5zmIMmWo \
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1NzY3MTR9.-OR7AsZe9zs_Nq4NGhkvYeISi_O28vqT0r8Tzv83SDI \
      ")
 
 r = requests.post(
-    f"{BASE_URL}/cv/presign",
+    f"{BASE_URL}/me/cv/presign",
     headers={"Authorization": f"Bearer {access_token}"},
     json={"filename": "cv.pdf", "content_type": "application/pdf"},
 )

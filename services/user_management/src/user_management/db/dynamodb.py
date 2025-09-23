@@ -1,4 +1,5 @@
 import os
+from fastapi import Depends, Header, HTTPException, Request
 import boto3
 from typing import Optional, Dict, Any
 from boto3.dynamodb.conditions import Attr, Key
@@ -30,7 +31,9 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
 
 
 def get_user_by_token(token: str) -> Optional[Dict[str, Any]]:
-    # requires GSI: verify_token-index
+    if not token:
+        return None
+
     resp = _table.query(
         IndexName="verify_token-index",
         KeyConditionExpression=Key("verify_token").eq(token),
@@ -39,6 +42,16 @@ def get_user_by_token(token: str) -> Optional[Dict[str, Any]]:
     items = resp.get("Items", [])
     return items[0] if items else None
 
+def dep_user_from_token(request: Request, x_user_token: str = Header(None, alias="X-User-Token")):
+    token = x_user_token or request.query_params.get("token")
+    if not token:
+        raise HTTPException(status_code=401, detail="user token required")
+    u = get_user_by_token(token)
+    if not u:
+        raise HTTPException(status_code=403, detail="invalid token")
+    if not u.get("is_verified"):
+        raise HTTPException(status_code=403, detail="email not verified")
+    return u
 
 def mark_verified(email: str):
     _table.update_item(

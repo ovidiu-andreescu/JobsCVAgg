@@ -4,7 +4,7 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import boto3
-from .auth import get_current_user  # your existing auth dependency that yields UserInDB
+from user_management.db.dynamodb import get_user_by_token  # your existing auth dependency that yields UserInDB
 
 router = APIRouter(prefix="/me/cv", tags=["me"])
 
@@ -32,7 +32,8 @@ def _s3_bucket():
 
 
 @router.post("/presign", response_model=PresignOut)
-def presign(p: PresignIn, user = Depends(get_current_user)):
+@router.post("/presign/", response_model=PresignOut)
+def presign(p: PresignIn, user = Depends(get_user_by_token)):
     try:
         s3, bucket = _s3_bucket()
         token = getattr(user, "verify_token", None) or getattr(user, "token", None) \
@@ -59,3 +60,7 @@ def presign(p: PresignIn, user = Depends(get_current_user)):
     except Exception as e:
         print(f"[presign] {type(e).__name__}: {e}", flush=True)
         raise HTTPException(status_code=500, detail="presign_failed")
+
+@router.get("/ping")
+def ping():
+    return {"ok": True}

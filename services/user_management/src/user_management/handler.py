@@ -1,4 +1,4 @@
 from mangum import Mangum
-from .main import app
+import app
 
 handler = Mangum(app)

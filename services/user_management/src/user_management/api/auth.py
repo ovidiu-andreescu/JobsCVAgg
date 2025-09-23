@@ -95,8 +95,8 @@ def login(p: LoginIn):
     u = get_user_by_email(email)
     if not u or not bcrypt.verify(p.password, u["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not u["is_verified"]:
-        raise HTTPException(status_code=403, detail="Email not verified")
+    # if not u["is_verified"]:
+    #     raise HTTPException(status_code=403, detail="Email not verified")
     token = create_access_token(subject=u["email"])
     return TokenResponse(access_token=token)
 

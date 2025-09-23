@@ -3,7 +3,7 @@ import os, boto3
 from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from user_management.main import CurrentUser, get_current_user
+from user_management.auth_deps import CurrentUser, get_current_user
 
 router = APIRouter(prefix="/me/cv", tags=["me"])
 

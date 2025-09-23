@@ -4,7 +4,7 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import boto3
-from user_management.db.dynamodb import get_user_by_token  # your existing auth dependency that yields UserInDB
+from user_management.main import CurrentUser, get_current_user
 
 router = APIRouter(prefix="/me/cv", tags=["me"])
 
@@ -33,22 +33,32 @@ def _s3_bucket():
 
 @router.post("/presign", response_model=PresignOut)
 @router.post("/presign/", response_model=PresignOut)
-def presign(p: PresignIn, user = Depends(get_user_by_token)):
+@router.post("/presign", response_model=PresignOut)
+def presign(p: PresignIn, current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Returns a presigned POST for direct S3 upload. Namespaces by a stable user identifier.
+    """
     try:
         s3, bucket = _s3_bucket()
-        token = getattr(user, "verify_token", None) or getattr(user, "token", None) \
-                or (user.get("verify_token") if isinstance(user, dict) else None) \
-                or (user.get("token") if isinstance(user, dict) else None)
-        if not token:
-            raise RuntimeError("user token missing on principal")
 
-        key = f"uploads/{token}/{p.filename}"
+        def _get(u, name):
+            return getattr(u, name, None) if hasattr(u, name) else u.get(name)
+
+        user_ns = _get(current_user, "id") or _get(current_user, "user_id") \
+                  or _get(current_user, "token") or _get(current_user, "verify_token") \
+                  or _get(current_user, "email")
+
+        if not user_ns:
+            raise RuntimeError("no stable user identifier on current_user")
+
+        key = f"uploads/{user_ns}/{p.filename}"
         fields = {"Content-Type": p.content_type}
         conditions = [
             {"Content-Type": p.content_type},
             ["content-length-range", 1, p.max_size],
             {"bucket": bucket},
         ]
+
         presigned = s3.generate_presigned_post(
             Bucket=bucket,
             Key=key,
@@ -57,10 +67,10 @@ def presign(p: PresignIn, user = Depends(get_user_by_token)):
             ExpiresIn=300,
         )
         return {"key": key, "url": presigned["url"], "fields": presigned["fields"]}
+
     except Exception as e:
         print(f"[presign] {type(e).__name__}: {e}", flush=True)
         raise HTTPException(status_code=500, detail="presign_failed")
-
 @router.get("/ping")
 def ping():
     return {"ok": True}

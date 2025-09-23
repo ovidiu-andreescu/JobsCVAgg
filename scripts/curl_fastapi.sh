@@ -15,7 +15,7 @@ curl https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/cv \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 
 {"access_token":"
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1NzY3MTR9.-OR7AsZe9zs_Nq4NGhkvYeISi_O28vqT0r8Tzv83SDI
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJleHAiOjE3NTg1OTczMjZ9.foFwGxrGBvAklxOTN79Gdu2g6xuOAcz6xRgZtywV_QI
 "
 ,"token_type":"bearer"}
 

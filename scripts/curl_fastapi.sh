@@ -32,4 +32,6 @@ curl -X POST https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/auth/_deb
   -H 'Content-Type: application/json' \
   -d '{"email":"test@example.com"}'
 
+curl -s "https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/match/me?limit=25" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" | jq .
 

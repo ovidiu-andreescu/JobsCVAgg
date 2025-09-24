@@ -18,7 +18,7 @@ resource "aws_iam_policy" "user_api_permissions" {
       },
       {
         Effect   = "Allow",
-        "Action" = ["s3:GetObject"],
+        "Action" = ["s3:GetObject", "s3:ListBucket" ],
         Resource = "arn:aws:s3:::dev-cv-upload/cv_keywords/*"
       }
     ]

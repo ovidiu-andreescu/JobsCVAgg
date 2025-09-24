@@ -1,0 +1,139 @@
+{
+  "region": "eu-central-1",
+
+  "buckets": [
+    { "name": "dev-cv-upload-local" },
+    { "name": "dev-jobs-local" }
+  ],
+
+  "dynamodb": {
+    "tables": [
+      {
+        "name": "dev-users-local",
+        "hashKey": { "name": "email", "type": "S" },
+        "billingMode": "PAY_PER_REQUEST",
+        "globalSecondaryIndexes": [
+          {
+            "name": "verify_token-index",
+            "hashKey": { "name": "verify_token", "type": "S" },
+            "projection": "ALL"
+          }
+        ],
+        "attributes": [
+          { "name": "email", "type": "S" },
+          { "name": "verify_token", "type": "S" }
+        ]
+      },
+      {
+        "name": "dev-jobs-local",
+        "hashKey": { "name": "job_id", "type": "S" },
+        "billingMode": "PAY_PER_REQUEST",
+        "attributes": [
+          { "name": "job_id", "type": "S" }
+        ]
+      }
+    ]
+  },
+
+  "lambdas": [
+    {
+      "name": "dev-cv-keywords-local",
+      "runtime": "python3.11",
+      "memory": 512,
+      "timeout": 60,
+      "handler": "cv_handling.handler",
+      "package": {
+        "source_root": "services/cv_handling/src",
+        "package_root": "cv_handling",
+        "copy_mode": "all",
+        "with_libs_common": true,
+        "pip_requirements": ""
+      },
+      "env": {
+        "CV_S3_BUCKET": "dev-cv-upload-local",
+        "USERS_TABLE_NAME": "dev-users-local",
+        "USERS_GSI_VERIFY_TOKEN": "verify_token-index",
+        "USE_LITE_NLP": "1"
+      },
+      "triggers": {
+        "s3": [
+          {
+            "bucket": "dev-cv-upload-local",
+            "events": ["s3:ObjectCreated:*"],
+            "filter_suffix": ".pdf"
+          }
+        ]
+      }
+    },
+
+    {
+      "name": "dev-job-aggregator-local",
+      "runtime": "python3.11",
+      "memory": 512,
+      "timeout": 60,
+      "handler": "job_aggregator.handler",
+      "package": {
+        "source_root": "services/job_aggregator/src/job_aggregator",
+        "package_root": "job_aggregator",
+        "copy_mode": "all",
+        "with_libs_common": true,
+        "pip_requirements": ""
+      },
+      "env": {
+        "JOBS_TABLE": "dev-jobs-local",
+        "ADZUNA_COUNTRY": "ro"
+      },
+      "triggers": {
+        "events": [
+          { "schedule": "rate(24 hours)" }
+        ]
+      }
+    },
+
+    {
+      "name": "dev-job-matcher-local",
+      "runtime": "python3.11",
+      "memory": 512,
+      "timeout": 60,
+      "handler": "job_matcher.handler",
+      "package": {
+        "source_root": "services/job-matcher/src/job-matcher",
+        "package_root": "job_matcher",
+        "copy_mode": "all",
+        "with_libs_common": true,
+        "pip_requirements": ""
+      },
+      "env": {
+        "USERS_TABLE_NAME": "dev-users-local",
+        "JOBS_TABLE": "dev-jobs-local"
+      }
+    },
+
+    {
+      "name": "dev-user-api-local",
+      "runtime": "python3.11",
+      "memory": 512,
+      "timeout": 60,
+      "handler": "user_management.handler.handler",
+      "package": {
+        "source_root": "services/user_management/src/user_management",
+        "package_root": "user_management",
+        "copy_mode": "all",
+        "with_libs_common": true,
+        "pip_requirements": "requirements-local.txt"
+      },
+      "env": {
+        "USERS_TABLE_NAME": "dev-users-local",
+        "USERS_GSI_VERIFY_TOKEN": "verify_token-index",
+        "CV_S3_BUCKET": "dev-cv-upload-local",
+        "NOTIFICATIONS_URL": "http://127.0.0.1:5001/notifications",
+        "NOTIF_CHANNEL": "console"
+      },
+      "apigateway": {
+        "name": "dev-user-api",
+        "stage": "dev",
+        "binary_media_types": ["*/*"]
+      }
+    }
+  ]
+}

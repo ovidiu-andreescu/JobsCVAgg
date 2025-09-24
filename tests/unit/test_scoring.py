@@ -1,6 +1,6 @@
+from user_management.matcher.scoring import calculate_jaccard_score, score_and_rank_jobs
+from user_management.matcher.models import JobForScoring
 import pytest
-from job-matcher.scoring import calculate_jaccard_score, score_and_rank_jobs
-from job-matcher.models import JobForScoring
 
 def test_jaccard_score_perfect_match():
     cv_keywords = {"python", "api", "aws"}

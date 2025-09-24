@@ -1,0 +1,25 @@
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    user: "root"                              # run as root so init scripts can execute
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    environment:
+      - SERVICES=s3,lambda,dynamodb,iam,cloudwatch,logs,events,apigateway,sts
+      - AWS_DEFAULT_REGION=eu-central-1
+      - DEBUG=1
+      - ENABLE_S3_BUCKET_NOTIFICATION=1
+      - LS_LOG=info
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "localstack_data:/var/lib/localstack"
+      - "./localstack/init/ready.d:/etc/localstack/init/ready.d:Z"
+      - "./localstack/manifest.json:/etc/localstack/init/manifest.json:Z" # <-- mount manifest explicitly
+      - "./:/workspace"
+volumes:
+  localstack_data:

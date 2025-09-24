@@ -5,7 +5,7 @@ resource "aws_iam_policy" "user_api_permissions" {
     Statement = [
       {
         Effect   = "Allow",
-        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:Scan"],
         Resource = [
           aws_dynamodb_table.users.arn,
           "${aws_dynamodb_table.users.arn}/index/*"
@@ -15,6 +15,11 @@ resource "aws_iam_policy" "user_api_permissions" {
         Effect   = "Allow",
         Action   = ["secretsmanager:GetSecretValue","secretsmanager:DescribeSecret"],
         Resource = "${aws_secretsmanager_secret.jwt_secret.arn}*"
+      },
+      {
+        Effect   = "Allow",
+        "Action" = ["s3:GetObject"],
+        Resource = "arn:aws:s3:::dev-cv-upload/cv_keywords/*"
       }
     ]
   })

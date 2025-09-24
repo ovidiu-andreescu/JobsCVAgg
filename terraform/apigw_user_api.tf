@@ -12,7 +12,7 @@ resource "aws_apigatewayv2_integration" "user_api" {
 }
 
 resource "aws_apigatewayv2_route" "user_api_proxy" {
-    api_id    = aws_apigatewayv2_api.user_api.id
+  api_id    = aws_apigatewayv2_api.user_api.id
   route_key = "$default"
   target    = "integrations/${aws_apigatewayv2_integration.user_api.id}"
 }

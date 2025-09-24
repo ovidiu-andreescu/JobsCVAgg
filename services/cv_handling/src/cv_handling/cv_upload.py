@@ -5,7 +5,7 @@ import os
 import base64
 import json
 from botocore.exceptions import BotoCoreError, ClientError
-from libs.common.src.agg_common import secrets_loader
+from agg_common import secrets_loader
 import logging
 from cv_parser import parse_cv_from_s3
 from cv_keywords import extract_keywords, upload_keywords_to_s3

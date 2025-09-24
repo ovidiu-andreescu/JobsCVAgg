@@ -1,4 +1,4 @@
-from services.cv_handling.src.cv_handling.cv_upload import process
+from cv_handling.cv_upload import process
 
 def handler(event, _context):
     rec = event["Records"][0]

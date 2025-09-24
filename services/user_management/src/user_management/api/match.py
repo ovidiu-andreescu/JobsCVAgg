@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from user_management.auth_deps import CurrentUser, get_current_user
 from user_management.matcher.storage import get_cv_keywords_from_s3, get_all_jobs_for_scoring
-
-from services.user_management.src.user_management.matcher.scoring import score_and_rank_jobs
+from user_management.matcher.scoring import score_and_rank_jobs
 
 router = APIRouter(prefix="/match", tags=["match"])
 

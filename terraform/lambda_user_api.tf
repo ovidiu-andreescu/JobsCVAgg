@@ -8,6 +8,7 @@ resource "aws_lambda_function" "user_api" {
 
   environment {
     variables = merge({
+      JOBS_TABLE_NAME = aws_dynamodb_table.jobs.name
       USERS_TABLE_NAME = aws_dynamodb_table.users.name
       CV_S3_BUCKET     = aws_s3_bucket.cv_uploads.bucket
       JWT_SECRET_KEY   = aws_secretsmanager_secret_version.jwt_secret_initial_version.secret_string

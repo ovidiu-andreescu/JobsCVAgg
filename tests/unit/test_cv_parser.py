@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from botocore.exceptions import ClientError
-from services.cv_handling.src.cv_handling.cv_parser import parse_cv_from_s3
+from cv_handling.cv_parser import parse_cv_from_s3
 
 # Test the parsing of a CV from S3
 @patch('services.cv_handling.src.cv_parser.PdfReader')

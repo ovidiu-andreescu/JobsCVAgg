@@ -50,10 +50,6 @@ def get_cv_keywords_from_s3(email: str) -> Set[str]:
     return set()
 
 def get_all_jobs_for_scoring() -> List[JobForScoring]:
-    # unchanged from your original storage; scans Jobs table and maps to JobForScoring
-    resp = jobs_table.scan(
-        ProjectionExpression="source, source_job_id, title, company, #u, keywords",
-        ExpressionAttributeNames={"#u": "url"},
-    )
+    resp = jobs_table.scan()
     items = resp.get("Items", [])
     return [JobForScoring(**it) for it in items]

@@ -18,6 +18,6 @@ def match_me(
 
     jobs = get_all_jobs_for_scoring()
     ranked = score_and_rank_jobs(cv_keywords, jobs)
-    return [j.model(mode="json") for j in ranked[:limit]]
+    return [j.model_dump(mode="json") for j in ranked[:limit]]
 
 

@@ -6,10 +6,18 @@ resource "aws_iam_policy" "user_api_permissions" {
     Statement = [
       {
         Effect   = "Allow",
-        Action   = ["dynamodb:PutItem","dynamodb:GetItem","dynamodb:UpdateItem","dynamodb:Query","dynamodb:Scan"],
+        Action   = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"],
         Resource = [
           aws_dynamodb_table.users.arn,
-          "${aws_dynamodb_table.users.arn}/index/*"
+          "${aws_dynamodb_table.users.arn}/index/*",
+          aws_dynamodb_table.jobs.arn                       # ← add this
+          # if Jobs has GSIs and you’ll ever Query them:
+          # "${aws_dynamodb_table.jobs.arn}/index/*"
         ]
       },
 

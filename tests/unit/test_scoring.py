@@ -10,7 +10,7 @@ def test_jaccard_score_perfect_match():
 
 def test_jaccard_score_partial_match():
     cv_keywords = {"python", "api", "aws", "fastapi"}
-    job_keywords = {"python", "aws", "docker", "terraform"}
+    job_keywords = {"python", "aws", "docker", "terraform2"}
     assert calculate_jaccard_score(cv_keywords, job_keywords) == pytest.approx(0.333, 0.001)
 
 
@@ -38,7 +38,7 @@ def sample_jobs():
         JobForScoring(source="test", source_job_id="3", title="No Match", url="http://test.com/3",
                       keywords={"java", "spring"}),
         JobForScoring(source="test", source_job_id="4", title="Another Partial", url="http://test.com/4",
-                      keywords={"aws", "terraform"}),
+                      keywords={"aws", "terraform2"}),
     ]
 
 

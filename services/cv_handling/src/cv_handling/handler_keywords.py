@@ -3,9 +3,9 @@ import json
 import os
 from botocore.exceptions import BotoCoreError, ClientError
 
-from cv_parser import parse_cv_from_s3
-from cv_keywords import extract_keywords, upload_keywords_to_s3
-from libs.common.src.agg_common import secrets_loader
+from .cv_parser import parse_cv_from_s3
+from .cv_keywords import extract_keywords, upload_keywords_to_s3
+from agg_common import secrets_loader
 
 def main():
     # Main function to handle the CV processing and keyword extraction
@@ -42,7 +42,7 @@ def main():
     except Exception as e:
         print (f"Error during processing: {e}")
         raise e
-        
+
 if __name__ == "__main__":
     main()
 

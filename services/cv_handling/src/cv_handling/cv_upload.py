@@ -1,4 +1,4 @@
-from xml.dom.minidom import Attr
+from pathlib import Path
 
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
@@ -10,8 +10,12 @@ from libs.common.src.agg_common import secrets_loader
 import logging
 from cv_parser import parse_cv_from_s3
 from cv_keywords import extract_keywords, upload_keywords_to_s3
+from urllib.parse import unquote_plus
+
+dynamodb = boto3.resource('dynamodb')
 
 USERS_TABLE = os.getenv("USERS_TABLE_NAME")
+_table = dynamodb.Table(USERS_TABLE) if USERS_TABLE else None
 USERS_GSI_VERIFY_TOKEN = os.getenv("USERS_GSI_VERIFY_TOKEN", "users_by_verify_token")  # optional
 
 log = logging.getLogger()
@@ -132,29 +136,61 @@ def _update_user_with_cv_keys(token: str, cv_key: str, kw_key: str) -> bool:
     return True
 
 
+def set_cv_keys_by_email(email: str, cv_key: str, kw_key: str) -> bool:
+    if not email:
+        return False
+    try:
+        resp = _table.update_item(
+            Key={'email': email.lower()},
+            UpdateExpression="SET cv_pdf_key = :cv, cv_keywords_key = :kw, cv_updated_at = :ts",
+            ExpressionAttributeValues={
+                ':cv': cv_key,
+                ':kw': kw_key,
+                ':ts': int(__import__('time').time())
+            },
+            ConditionExpression="attribute_exists(email)",   # prevent creating a new item by mistake
+            ReturnValues="NONE"
+        )
+        return True
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return False
+        raise
+
+
 def process(bucket_name: str, object_key: str):
-    s3 = boto3.resource("s3")
+    s3 = boto3.client("s3")
+
+    object_key = unquote_plus(object_key)
     log.info(f"Processing s3://{bucket_name}/{object_key}")
 
-    log.info(f"Processing s3://{bucket_name}/{object_key}")
     text = parse_cv_from_s3(s3, bucket_name, object_key)
     keywords = extract_keywords(text)
 
-    base = object_key.split("/")[-1]
-    if base.lower().endswith(".pdf"):
-        base = base[:-4]
-    keywords_key = f"cv_keywords/{base}_keywords.json"
+    parts = object_key.split("/")
+    base = Path(parts[-1]).stem
+
+    token = None
+    email = None
+
+    if len(parts) >= 3 and parts[0] == "cv_uploads":
+        token = parts[1]
+        keywords_key = f"cv_keywords/{token}/{base}_keywords.json"
+    elif len(parts) >= 3 and parts[0] == "uploads":
+        email = parts[1].lower()
+        keywords_key = f"cv_keywords/{email}/{base}_keywords.json"
+    else:
+        keywords_key = f"cv_keywords/{base}_keywords.json"
 
     upload_keywords_to_s3(s3, bucket_name, keywords_key, keywords)
     log.info(f"Wrote keywords to s3://{bucket_name}/{keywords_key}")
 
-    token = None
-    parts = object_key.split("/")
-    if len(parts) >= 3 and parts[0] == "cv_uploads":
-        token = parts[1]
+    if USERS_TABLE:
+        if token:
+            ok = _update_user_with_cv_keys(token, object_key, keywords_key)
+            log.info(f"DDB update by token={token}: {'ok' if ok else 'not found'}")
+        elif email:
+            ok = set_cv_keys_by_email(email, object_key, keywords_key)
+            log.info(f"DDB update by email={email}: {'ok' if ok else 'not found'}")
 
-    if token and USERS_TABLE:
-        ok = _update_user_with_cv_keys(token, object_key, keywords_key)
-        log.info(f"User table update for token={token}: {'ok' if ok else 'not found'}")
-
-    return {"bucket": bucket_name, "keywords_key": keywords_key, "token": token}
+    return {"bucket": bucket_name, "keywords_key": keywords_key, "token": token, "email": email}

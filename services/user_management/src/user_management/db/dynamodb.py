@@ -69,7 +69,6 @@ def mark_verified(email: str):
         ExpressionAttributeValues={':v': True},
     )
 
-
 def set_cv_keys_by_token(token: str, cv_key: str, kw_key: str) -> bool:
     u = get_user_by_token(token)
     if not u:
@@ -77,6 +76,16 @@ def set_cv_keys_by_token(token: str, cv_key: str, kw_key: str) -> bool:
     email = u["email"].lower()
     _table.update_item(
         Key={'email': email},
+        UpdateExpression="SET cv_pdf_key = :cv, cv_keywords_key = :kw",
+        ExpressionAttributeValues={':cv': cv_key, ':kw': kw_key},
+    )
+    return True
+
+def set_cv_keys_by_email(email: str, cv_key: str, kw_key: str) -> bool:
+    if not email:
+        return False
+    _table.update_item(
+        Key={'email': email.lower()},
         UpdateExpression="SET cv_pdf_key = :cv, cv_keywords_key = :kw",
         ExpressionAttributeValues={':cv': cv_key, ':kw': kw_key},
     )

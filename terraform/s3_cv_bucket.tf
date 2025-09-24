@@ -48,3 +48,14 @@ resource "aws_s3_bucket_cors_configuration" "cv_cors" {
     max_age_seconds = 3000
   }
 }
+
+resource "aws_s3_bucket_notification" "cv_uploads_events" {
+  bucket = aws_s3_bucket.cv_uploads.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.cv_upload.arn
+    events = ["s3:ObjectCreated:*"]
+    filter_prefix       = ""
+    filter_suffix       = ".pdf"
+  }
+}

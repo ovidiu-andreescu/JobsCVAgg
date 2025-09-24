@@ -3,8 +3,8 @@ import json
 import os
 from botocore.exceptions import BotoCoreError, ClientError
 
-from cv_parser import parse_cv_from_s3
-from cv_keywords import extract_keywords, upload_keywords_to_s3
+from .cv_parser import parse_cv_from_s3
+from .cv_keywords import extract_keywords, upload_keywords_to_s3
 from agg_common import secrets_loader
 
 def main():

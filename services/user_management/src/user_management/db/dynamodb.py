@@ -42,7 +42,7 @@ def get_user_by_token(token: str) -> Optional[Dict[str, Any]]:
     return items[0] if items else None
 
 def get_user_by_verify_token(token: str) -> dict | None:
-    resp = _table().scan(
+    resp = _table.scan(
         FilterExpression="verify_token = :t",
         ExpressionAttributeValues={":t": token},
         ProjectionExpression="#e, is_verified, verify_token",

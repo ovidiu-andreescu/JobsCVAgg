@@ -1,5 +1,6 @@
 from .api.auth import router as auth_router
 from .api.cv import router as cv_router
+from .api.match import router as match_router
 from fastapi import FastAPI
 from mangum import Mangum
 
@@ -17,6 +18,8 @@ def health():
 app.include_router(auth_router)
 
 app.include_router(cv_router)
+
+app.include_router(match_router)
 
 # ---------- lambda handler ----------
 handler = Mangum(app)

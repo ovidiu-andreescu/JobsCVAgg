@@ -1,20 +1,44 @@
 resource "aws_iam_policy" "user_api_permissions" {
-  name   = var.prefix != "" ? "${var.prefix}-user-api-permissions" : "user-api-permissions"
+  name = "${var.prefix}-user-api-permissions"
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
         Effect   = "Allow",
-        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+        Action   = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"],
         Resource = [
           aws_dynamodb_table.users.arn,
-          "${aws_dynamodb_table.users.arn}/index/*"
+          "${aws_dynamodb_table.users.arn}/index/*",
+          aws_dynamodb_table.jobs.arn                       # ← add this
+          # if Jobs has GSIs and you’ll ever Query them:
+          # "${aws_dynamodb_table.jobs.arn}/index/*"
         ]
       },
+
       {
         Effect   = "Allow",
         Action   = ["secretsmanager:GetSecretValue","secretsmanager:DescribeSecret"],
-        Resource = "${aws_secretsmanager_secret.jwt_secret.arn}*"
+        Resource = aws_secretsmanager_secret.jwt_secret.arn
+      },
+
+      {
+        Effect    = "Allow",
+        Action    = ["s3:ListBucket"],
+        Resource  = aws_s3_bucket.cv_uploads.arn,
+        Condition = {
+          StringLike = { "s3:prefix" = [ "cv_keywords/*" ] }
+        }
+      },
+      {
+        Effect   = "Allow",
+        Action   = ["s3:GetObject"],
+        Resource = "${aws_s3_bucket.cv_uploads.arn}/cv_keywords/*"
       }
     ]
   })
@@ -36,23 +60,28 @@ resource "aws_iam_role_policy_attachment" "user_api_cwlogs" {
 }
 
 resource "aws_iam_policy" "cv_upload_putobject" {
-  name        = "cv-upload-putobject"
-  description = "Allow user-api to put objects under uploads/"
-  policy      = jsonencode({
-    Version = "2012-10-17"
+  name        = "${var.prefix}-cv-upload-putobject"
+  description = "Allow user-api to upload under uploads/ (presigned POST/MPU)"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "PutObjectsToUploadsPrefix"
-        Effect = "Allow"
-        Action = [
+        Sid       = "ListBucketMultipart",
+        Effect    = "Allow",
+        Action    = ["s3:ListBucketMultipartUploads"],
+        Resource  = aws_s3_bucket.cv_uploads.arn,
+        Condition = { StringLike = { "s3:prefix" = [ "uploads/*" ] } }
+      },
+      {
+        Sid     = "PutUploads",
+        Effect  = "Allow",
+        Action  = [
           "s3:PutObject",
           "s3:AbortMultipartUpload",
-          "s3:ListBucketMultipartUploads",
           "s3:ListMultipartUploadParts"
-        ]
-        Resource = [
-          "arn:aws:s3:::dev-cv-upload/uploads/*"
-        ]
+        ],
+        Resource = "${aws_s3_bucket.cv_uploads.arn}/uploads/*"
       }
     ]
   })

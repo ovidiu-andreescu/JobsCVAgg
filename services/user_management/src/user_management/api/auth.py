@@ -5,15 +5,15 @@ import requests
 import os
 from uuid import uuid4
 from fastapi import HTTPException, Depends
-from ..auth_deps import CurrentUser, get_current_user, PublicUser, create_access_token, TokenResponse, DebugVerifyIn
-from ..db.dynamodb import (
+from user_management.auth_deps import CurrentUser, get_current_user, PublicUser, create_access_token, TokenResponse, DebugVerifyIn
+from user_management.db.dynamodb import (
     create_user,
     get_user_by_email,
     get_user_by_token,
     mark_verified, get_user_by_verify_token,
 )
 from ..models import user
-from ..schemas.auth import UserInDB
+from user_management.schemas.auth import UserInDB
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

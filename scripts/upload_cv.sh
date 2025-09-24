@@ -1,5 +1,5 @@
 API="https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com"
-TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTg2NjYyOTgsImV4cCI6MTc1ODY2OTg5OCwidHlwZSI6ImFjY2VzcyJ9.KxlBwi3F_oTf9pF_47Wky0od_11V-LcJ3cYjQW_bgkc"
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTg2OTk4NzksImV4cCI6MTc1ODcwMzQ3OSwidHlwZSI6ImFjY2VzcyJ9.au9T9xFkIdMu7ohgNYxJcQ-6gqo_bEvYbZtrZMT66vU"
 FILE="cv.pdf"
 
 # 1) Get presign

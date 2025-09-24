@@ -15,8 +15,8 @@ curl https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/cv \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 
 {"access_token":"
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTg2MTYxNDUsImV4cCI6MTc1ODYxOTc0NSwidHlwZSI6ImFjY2VzcyJ9.EoSe_L6Lx_cGkj7cfZKvGhAPaorf8XOzaYwuxm-4qYs","token_type":"bearer"}
-
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ5b3VAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTg2OTk4NzksImV4cCI6MTc1ODcwMzQ3OSwidHlwZSI6ImFjY2VzcyJ9.au9T9xFkIdMu7ohgNYxJcQ-6gqo_bEvYbZtrZMT66vU
+"
 curl -i -X POST "https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com/cv/presign" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \

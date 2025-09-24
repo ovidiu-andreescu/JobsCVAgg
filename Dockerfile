@@ -2,13 +2,14 @@ FROM public.ecr.aws/lambda/python:3.12
 
 WORKDIR /var/task
 
-COPY services/user_management/requirements.txt ./requirements.txt
+COPY services/cv_handling/requirements.txt ./service_requirements.txt
 COPY libs/common/requirements-common.txt ./common_requirements.txt
 
-RUN pip install --no-cache-dir -r \
-    requirements.txt -r common_requirements.txt
+RUN pip install --no-cache-dir -r service_requirements.txt -r common_requirements.txt
+RUN python -m spacy download en_core_web_md
 
-COPY services/user_management/src .
+COPY services/cv_handling/src .
 COPY libs/common/src .
 
-CMD [ "user_management.main.handler" ]
+CMD [ "cv_handling.handler.handler" ]
+

@@ -38,13 +38,13 @@ resource "aws_lambda_function" "notifications" {
 
   timeout       = 10
   memory_size   = 512
-  architectures = ["arm64"]  # or "x86_64" to match your image
-
+  architectures = ["x86_64"]
   environment {
     variables = {
       NOTIFICATIONS_PROVIDER = var.notifications_provider      # "ses"
       FROM_EMAIL             = var.notifications_from_email    # e.g., noreply@yourdomain.com
-      SENDGRID_API_KEY       = var.sendgrid_api_key            # optional
+      SENDGRID_API_KEY       = var.sendgrid_api_key
+      SES_FROM_EMAIL         = var.notifications_from_email
     }
   }
 
@@ -69,7 +69,7 @@ resource "aws_apigatewayv2_integration" "notif_integration" {
 
 resource "aws_apigatewayv2_route" "notif_proxy" {
   api_id    = aws_apigatewayv2_api.notif_http.id
-  route_key = "ANY /notifications/{proxy+}"
+  route_key = "ANY /{proxy+}"
   target    = "integrations/${aws_apigatewayv2_integration.notif_integration.id}"
 }
 
@@ -124,4 +124,23 @@ resource "aws_ses_domain_identity" "ses_domain" {
 
 resource "aws_ses_domain_dkim" "dkim" {
   domain = aws_ses_domain_identity.ses_domain.domain
+}
+
+resource "aws_iam_policy" "ses_send" {
+  name   = "${var.prefix}-ses-send"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect: "Allow",
+      Action: [
+        "ses:SendEmail",
+        "ses:SendRawEmail"
+      ],
+      Resource: "*"
+    }]
+  })
+}
+resource "aws_iam_role_policy_attachment" "attach_ses_send" {
+  role       = aws_iam_role.notif_role.name
+  policy_arn = aws_iam_policy.ses_send.arn
 }

@@ -129,7 +129,7 @@ export default function App() {
   const [umBase, setUmBase] = useLocalStorage("cfg.umBase", EXEC_BASE);
   const [aggBase, setAggBase] = useLocalStorage(
     "cfg.aggBase",
-    EXEC_BASE + "/jobs/search"
+    EXEC_BASE + "/jobs"
   );
   const [notifBase, setNotifBase] = useLocalStorage("cfg.notifBase", EXEC_BASE);
   const [cvBase, setCvBase] = useLocalStorage("cfg.cvBase", EXEC_BASE);
@@ -141,7 +141,7 @@ export default function App() {
   const DEFAULTS = useMemo(
     () => ({
       um: EXEC_BASE,
-      agg: EXEC_BASE + "/jobs/search",
+      agg: EXEC_BASE + "/jobs",
       notif: EXEC_BASE,
       cv: EXEC_BASE,
       matcher: EXEC_BASE,
@@ -195,6 +195,8 @@ export default function App() {
   // debug panel state (listens to global fetch debugger from main.tsx)
   const [debugOpen, setDebugOpen] = useState(false);
   const [lastDebug, setLastDebug] = useState<FetchDebug | null>(null);
+
+  const [totalJobs, setTotalJobs] = useState<number | null>(null);
 
   useEffect(() => {
     function onDbg(e: Event) {
@@ -294,27 +296,45 @@ async function apiLogin() {
     }
   }
 
-  async function apiSearch() {
-    setBusy(true);
-    setJobs(null);
-    try {
-      const url = new URL(aggBase, window.location.origin); // supports absolute or relative
-      if (!url.search) {
-        url.searchParams.set("q", q);
-        if (loc) url.searchParams.set("location", loc);
-        url.searchParams.set("page", String(page || 1));
-        url.searchParams.set("results_per_page", String(perPage || 20));
-      }
-      const r = await fetch(url.toString());
-      const data = await r.json().catch(() => []);
-      if (!r.ok) throw new Error((data as any)?.error || `Search failed: ${r.status}`);
-      setJobs(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      setToast(e.message || "Search failed");
-    } finally {
-      setBusy(false);
+async function apiSearch() {
+  setBusy(true);
+  setJobs(null);
+  setTotalJobs(null);
+  try {
+    const base = aggBase.replace(/\/search\/?$/i, "");
+    const url = new URL(aggBase, window.location.origin);
+
+    url.searchParams.set("keywords", q || "");
+    if (loc) url.searchParams.set("location", loc);
+    url.searchParams.set("page", String(page || 1));
+    url.searchParams.set("per_page", String(perPage || 20));
+
+    const r = await fetch(url.toString(), {
+      method: "GET",
+      mode: "cors",
+      credentials: "omit",
+      headers: { accept: "application/json" },
+    });
+
+    const text = await r.text().catch(() => "");
+    let data: any = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { /* not json */ }
+
+    if (!r.ok) {
+      const detail = (data as any)?.detail || (data as any)?.error;
+      throw new Error(detail || `Search failed: ${r.status}`);
     }
+
+    const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+    setJobs(items);
+    setTotalJobs(typeof data?.total === "number" ? data.total : items.length);
+  } catch (e: any) {
+    setToast(e?.message || "Search failed");
+  } finally {
+    setBusy(false);
   }
+}
+
 
 async function apiPresignAndUploadCV() {
   if (!cvFile) return setToast("Pick a PDF first");
@@ -459,7 +479,6 @@ async function apiFetchMatches() {
           to: notifyTo || email,
           subject: notifySubject,
           message: notifyMessage,
-          channel: "console",
         }),
       });
       const data = await r.json().catch(() => ({}));
@@ -546,7 +565,7 @@ async function apiFetchMatches() {
           label="Job Aggregator endpoint"
           value={aggBase}
           onChange={(e) => setAggBase(e.target.value)}
-          placeholder={EXEC_BASE + "/jobs/search"}
+          placeholder={EXEC_BASE + "/jobs"}
         />
         <LabeledInput
           label="Notifications base URL"
@@ -693,8 +712,7 @@ async function apiFetchMatches() {
 
         {Array.isArray(jobs) && (
           <div className="grid gap-3">
-            <div className="text-sm text-gray-500">{jobs.length} result(s)</div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="text-sm text-gray-500">{(totalJobs ?? jobs.length)} result(s)</div>            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {jobs.map((job) => (
                 <motion.a
                   key={`${job.source}:${job.source_job_id}`}

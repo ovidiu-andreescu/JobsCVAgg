@@ -1,11 +1,14 @@
-FROM public.ecr.aws/lambda/python:3.12 AS base
+FROM public.ecr.aws/lambda/python:3.12
 
 WORKDIR /var/task
 
-COPY services/notifications/requirements.txt ./service_requirements.txt
-RUN pip install --no-cache-dir -r service_requirements.txt
+COPY services/user_management/requirements.txt ./requirements.txt
+COPY libs/common/requirements-common.txt ./common_requirements.txt
 
-COPY services/notifications/src .
+RUN pip install --no-cache-dir -r \
+    requirements.txt -r common_requirements.txt
 
-CMD [ "notifications.handler.handler" ]
+COPY services/user_management/src .
+COPY libs/common/src .
 
+CMD [ "user_management.main.handler" ]

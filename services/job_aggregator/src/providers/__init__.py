@@ -9,7 +9,7 @@ def available_providers() -> List[Provider]:
 
     all_provider_instances = [
         RemotiveProvider(),
-        AdzunaProvider(),
+        # AdzunaProvider(),
     ]
 
     for p in all_provider_instances:

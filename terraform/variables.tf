@@ -49,3 +49,29 @@ variable "lambda_cv_upload_image_uri" {
   type        = string
 }
 
+
+variable "lambda_notifications_image_uri" {
+   description = "The full URI of the Docker image in ECR for the notifications function."
+  type = string
+}
+
+variable "domain_name" {
+  description = "Domain"
+  type        = string
+}
+
+variable "notifications_from_email" {
+  description = "From address for SES (e.g., noreply@yourdomain.com)"
+  type        = string
+}
+
+variable "notifications_provider" {
+  type = string
+  default = "ses"
+}
+
+variable "sendgrid_api_key"       {
+  type = string
+  default = ""
+}
+

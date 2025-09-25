@@ -14,6 +14,7 @@ import {
   Link as LinkIcon,
   BellRing,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,11 +24,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+
+import "./styles.css";
+
+// ----------------------------- Types & helpers -----------------------------
 
 interface Job {
   source: string;
@@ -43,6 +48,27 @@ interface Job {
   posted_at?: string | null;
   extras?: Record<string, any>;
 }
+
+type FetchDebug = {
+  ts: string;
+  request: {
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+    bodyPreview?: string;
+  };
+  response?: {
+    ok: boolean;
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    bodyText?: string;
+  };
+  error?: string;
+};
+
+const authHeaders = (token?: string) =>
+  token ? { Authorization: `Bearer ${token}` } : {};
 
 const fmtDate = (iso?: string | null) => {
   if (!iso) return "";
@@ -73,30 +99,68 @@ const useLocalStorage = <T,>(key: string, initial: T) => {
   return [value, setValue] as const;
 };
 
+// small labeled input helper
+function LabeledInput(props: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  type?: string;
+  onChange: React.ChangeEventHandler<HTMLInputElement>;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>{props.label}</Label>
+      <Input
+        value={props.value}
+        type={props.type || "text"}
+        placeholder={props.placeholder}
+        onChange={props.onChange}
+      />
+    </div>
+  );
+}
+
+// --------------------------------- App ---------------------------------
+
 export default function App() {
-  // DEFAULT TO PROXY PATHS
-  const [umBase, setUmBase] = useLocalStorage("cfg.umBase", "/api");
-  const [aggBase, setAggBase] = useLocalStorage("cfg.aggBase", "/agg");
-  const [notifBase, setNotifBase] = useLocalStorage("cfg.notifBase", "/notif");
+  // API bases: default to execute-api (you can override in Settings)
+  const EXEC_BASE = "https://nqa4hzzjff.execute-api.eu-central-1.amazonaws.com";
 
-  // one-time migration away from old absolute localhost values
-  useEffect(() => {
-    const fix = (v: string, rel: string) =>
-      v.startsWith("http://127.0.0.1") || v.startsWith("http://localhost")
-        ? rel
-        : v;
+  const [umBase, setUmBase] = useLocalStorage("cfg.umBase", EXEC_BASE);
+  const [aggBase, setAggBase] = useLocalStorage(
+    "cfg.aggBase",
+    EXEC_BASE + "/jobs/search"
+  );
+  const [notifBase, setNotifBase] = useLocalStorage("cfg.notifBase", EXEC_BASE);
+  const [cvBase, setCvBase] = useLocalStorage("cfg.cvBase", EXEC_BASE);
+  const [matcherBase, setMatcherBase] = useLocalStorage(
+    "cfg.matcherBase",
+    EXEC_BASE
+  );
 
-    const newUm = fix(umBase, "/api");
-    const newAgg = fix(aggBase, "/agg");
-    const newNotif = fix(notifBase, "/notif");
+  const DEFAULTS = useMemo(
+    () => ({
+      um: EXEC_BASE,
+      agg: EXEC_BASE + "/jobs/search",
+      notif: EXEC_BASE,
+      cv: EXEC_BASE,
+      matcher: EXEC_BASE,
+    }),
+    []
+  );
 
-    if (newUm !== umBase) setUmBase(newUm);
-    if (newAgg !== aggBase) setAggBase(newAgg);
-    if (newNotif !== notifBase) setNotifBase(newNotif);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  function resetApiBasesToDefaults() {
+    setUmBase(DEFAULTS.um);
+    setAggBase(DEFAULTS.agg);
+    setNotifBase(DEFAULTS.notif);
+    setCvBase(DEFAULTS.cv);
+    setMatcherBase(DEFAULTS.matcher);
+    setToast("API bases reset to execute-api defaults");
+  }
 
+  // auth & ui state
   const [email, setEmail] = useLocalStorage("auth.email", "");
+  const [password, setPassword] = useState("");
   const [token, setToken] = useLocalStorage<string | null>("auth.token", null);
   const isAuthed = !!token;
 
@@ -104,67 +168,118 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  // search state
   const [q, setQ] = useLocalStorage("search.q", "software engineer");
   const [loc, setLoc] = useLocalStorage("search.loc", "Bucharest, RO");
   const [page, setPage] = useLocalStorage<number>("search.page", 1);
   const [perPage, setPerPage] = useLocalStorage<number>("search.perPage", 20);
   const [jobs, setJobs] = useState<Job[] | null>(null);
 
+  // notifications state
   const [notifyTo, setNotifyTo] = useState("");
-  const [notifySubject, setNotifySubject] = useState("JobsCVAgg test message");
+  const [notifySubject, setNotifySubject] =
+    useState("JobsCVAgg test message");
   const [notifyMessage, setNotifyMessage] = useState(
     "Hello from the demo UI! ✨"
   );
 
-  async function apiRegister() {
-    setBusy(true);
-    try {
-      const r = await fetch(`${abs(umBase)}/auth/register`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password: "changeme123" }),
-      });
-      if (!r.ok) throw new Error(`Register failed: ${r.status}`);
-      setToast(
-        "Registration successful. Check your inbox to verify your email."
-      );
-      setTab("auth");
-    } catch (e: any) {
-      setToast(e.message || "Registration failed");
-    } finally {
-      setBusy(false);
+  // CV & matches state
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [cvStatus, setCvStatus] = useState<any>(null);
+  const [matches, setMatches] = useState<any[] | null>(null);
+
+  // debug panel state (listens to global fetch debugger from main.tsx)
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [lastDebug, setLastDebug] = useState<FetchDebug | null>(null);
+
+  useEffect(() => {
+    function onDbg(e: Event) {
+      const ev = e as CustomEvent<FetchDebug>;
+      setLastDebug(ev.detail);
     }
+    window.addEventListener("fetch-debug", onDbg as any);
+    if ((window as any).__fetchDebug?.last)
+      setLastDebug((window as any).__fetchDebug.last as FetchDebug);
+    return () => window.removeEventListener("fetch-debug", onDbg as any);
+  }, []);
+
+  async function copyDebug() {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(lastDebug, null, 2));
+      setToast("Copied last error JSON");
+    } catch {}
   }
 
-  async function apiLogin() {
-    setBusy(true);
-    try {
-      const r = await fetch(`${abs(umBase)}/auth/login`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password: "changeme123" }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data?.detail || `Login failed: ${r.status}`);
-      if (data?.access_token) setToken(data.access_token);
-      else if (data?.ok) setToken("dummy");
-      setToast("Logged in ✅");
-    } catch (e: any) {
-      setToast(e.message || "Login failed");
-    } finally {
-      setBusy(false);
-    }
+  // ----------------------------- API calls -----------------------------
+
+async function apiRegister() {
+  setBusy(true);
+  try {
+     const r = await fetch(`${abs(umBase)}/auth/register`, {
+      method: "POST",
+      mode: "cors",
+      credentials: "omit",
+      headers: {
+        "accept": "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password,
+      }),
+    });
+    if (!r.ok) throw new Error(`Register failed: ${r.status}`);
+    setToast("Registration successful. Check your inbox to verify your email.");
+    setTab("auth");
+  } catch (e: any) {
+    setToast(e.message || "Registration failed");
+  } finally {
+    setBusy(false);
   }
+}
+
+async function apiLogin() {
+  setBusy(true);
+  try {
+    const r = await fetch(`${abs(umBase)}/auth/login`, {
+      method: "POST",
+      mode: "cors",
+      credentials: "omit",
+      headers: {
+        "accept": "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password, // <-- from a password input state
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((data as any)?.detail || `Login failed: ${r.status}`);
+    if ((data as any)?.access_token) setToken((data as any).access_token);
+    else if ((data as any)?.ok) setToken("dummy");
+    setToast("Logged in ");
+  } catch (e: any) {
+    setToast(e?.message || "Login failed (network/CORS?)");
+  } finally {
+    setBusy(false);
+  }
+}
+
 
   async function apiVerifyLink() {
     setBusy(true);
     try {
       const r = await fetch(
-        `${abs(umBase)}/auth/_debug/verify_link?email=${encodeURIComponent(
-          email
-        )}`
+        `${abs(umBase)}/auth/_debug/verify_link?email=${encodeURIComponent(email)}`,
+        {
+          method: "GET",
+          mode: "cors",
+          credentials: "omit",
+          headers: { "accept": "application/json" },
+        }
       );
-      const data = await r.json();
+      const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data?.detail || `Error: ${r.status}`);
       if (data?.url) window.open(data.url, "_blank");
       else setToast("Already verified");
@@ -179,7 +294,7 @@ export default function App() {
     setBusy(true);
     setJobs(null);
     try {
-      const url = new URL(aggBase, window.location.origin); // supports "/agg" or absolute
+      const url = new URL(aggBase, window.location.origin); // supports absolute or relative
       if (!url.search) {
         url.searchParams.set("q", q);
         if (loc) url.searchParams.set("location", loc);
@@ -187,8 +302,8 @@ export default function App() {
         url.searchParams.set("results_per_page", String(perPage || 20));
       }
       const r = await fetch(url.toString());
-      const data = await r.json();
-      if (!r.ok) throw new Error(data?.error || `Search failed: ${r.status}`);
+      const data = await r.json().catch(() => []);
+      if (!r.ok) throw new Error((data as any)?.error || `Search failed: ${r.status}`);
       setJobs(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setToast(e.message || "Search failed");
@@ -197,12 +312,102 @@ export default function App() {
     }
   }
 
+  async function apiPresignAndUploadCV() {
+    if (!cvFile) return setToast("Pick a PDF first");
+    if (!token) return setToast("Please log in first");
+    setBusy(true);
+    try {
+      const r = await fetch(`${abs(cvBase)}/me/cv/presign`, {
+        method: "POST",
+        mode: "cors",
+        credentials: "omit",
+        headers: {
+          "accept": "application/json",
+          "content-type": "application/json",
+          ...authHeaders(token),
+        },
+        body: JSON.stringify({
+          filename: cvFile.name,
+          content_type: cvFile.type || "application/pdf",
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((data as any)?.detail || "Failed to presign");
+
+      const form = new FormData();
+      for (const [k, v] of Object.entries((data as any).fields || {}))
+        form.append(k, String(v));
+      form.append("key", (data as any).key);
+      form.append("Content-Type", cvFile.type || "application/pdf");
+      form.append("file", cvFile);
+
+      const s3 = await fetch((data as any).url, { method: "POST", body: form });
+      if (!s3.ok) throw new Error(`S3 upload failed: ${s3.status}`);
+      setToast("Uploaded. Processing may take ~30–60s. Check status.");
+    } catch (e: any) {
+      setToast(e.message || "CV upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function apiCvStatus() {
+    if (!token) return setToast("Please log in first");
+    setBusy(true);
+    try {
+      const r = await fetch(`${abs(cvBase)}/me/cv`, {
+        method: "GET",
+        mode: "cors",
+        credentials: "omit",
+        headers: {
+          "accept": "application/json",
+          ...authHeaders(token),
+        },
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((data as any)?.detail || "CV status failed");
+      setCvStatus(data);
+    } catch (e: any) {
+      setToast(e.message || "CV status error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function apiFetchMatches() {
+    if (!token) return setToast("Please log in first");
+    setBusy(true);
+    try {
+      const r = await fetch(`${abs(matcherBase)}/me/matches`, {
+        method: "GET",
+        mode: "cors",
+        credentials: "omit",
+        headers: {
+          "accept": "application/json",
+          ...authHeaders(token),
+        },
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((data as any)?.detail || "Fetch matches failed");
+      setMatches(Array.isArray(data) ? data : (data as any).items || []);
+    } catch (e: any) {
+      setToast(e.message || "Matches error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function apiSendNotification() {
     setBusy(true);
     try {
-      const r = await fetch(`${abs(notifBase)}/notifications/send`, {
+     const r = await fetch(`${abs(notifBase)}/notifications/send`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        mode: "cors",
+        credentials: "omit",
+        headers: {
+          "accept": "application/json",
+          "content-type": "application/json",
+        },
         body: JSON.stringify({
           to: notifyTo || email,
           subject: notifySubject,
@@ -210,8 +415,8 @@ export default function App() {
           channel: "console",
         }),
       });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data?.detail || `Failed: ${r.status}`);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((data as any)?.detail || `Failed: ${r.status}`);
       setToast("Notification sent ✉️");
     } catch (e: any) {
       setToast(e.message || "Notification failed");
@@ -220,95 +425,170 @@ export default function App() {
     }
   }
 
+  async function probeCorsLogin() {
+  setBusy(true);
+  try {
+    const url = `${abs(umBase)}/auth/login`;
+    const r = await fetch(url, {
+      method: "OPTIONS",
+      mode: "cors",
+      credentials: "omit",
+      headers: {
+        "origin": window.location.origin,
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type,authorization",
+      },
+    });
+
+    const headers: Record<string, string> = {};
+    r.headers.forEach((v, k) => (headers[k.toLowerCase()] = v));
+
+    const dbg = {
+      ts: new Date().toISOString(),
+      request: {
+        url,
+        method: "OPTIONS",
+        headers: {
+          origin: window.location.origin,
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "content-type,authorization",
+        },
+      },
+      response: {
+        ok: r.ok,
+        status: r.status,
+        statusText: r.statusText,
+        headers,
+        bodyText: "", // preflights usually have empty bodies
+      },
+    };
+    window.dispatchEvent(new CustomEvent("fetch-debug", { detail: dbg }));
+
+    const allowOrigin = headers["access-control-allow-origin"] || "∅";
+    const allowMethods = headers["access-control-allow-methods"] || "∅";
+    const allowHeaders = headers["access-control-allow-headers"] || "∅";
+    setToast(
+      `CORS preflight ${r.ok ? "OK" : r.status}: ` +
+      `Allow-Origin=${allowOrigin} | Methods=${allowMethods} | Headers=${allowHeaders}`
+    );
+  } catch (e: any) {
+    setToast(e?.message || "CORS probe failed");
+  } finally {
+    setBusy(false);
+  }
+}
+
+  // ------------------------------- UI chunks -------------------------------
+
   const SettingsPanel = (
     <Card className="border-0 shadow-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Settings2 className="w-5 h-5" /> Settings
         </CardTitle>
-        <CardDescription>
-          Point the UI to your running services.
-        </CardDescription>
+        <CardDescription>Point the UI to your running services.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="grid gap-2">
-          <Label>User Management base URL</Label>
-          <Input
-            value={umBase}
-            onChange={(e) => setUmBase(e.target.value)}
-            placeholder="/api"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Job Aggregator endpoint (Lambda/API GW)</Label>
-          <Input
-            value={aggBase}
-            onChange={(e) => setAggBase(e.target.value)}
-            placeholder="/agg"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Notifications base URL</Label>
-          <Input
-            value={notifBase}
-            onChange={(e) => setNotifBase(e.target.value)}
-            placeholder="/notif"
-          />
+        <LabeledInput
+          label="User Management base URL"
+          value={umBase}
+          onChange={(e) => setUmBase(e.target.value)}
+          placeholder={EXEC_BASE}
+        />
+        <LabeledInput
+          label="Job Aggregator endpoint"
+          value={aggBase}
+          onChange={(e) => setAggBase(e.target.value)}
+          placeholder={EXEC_BASE + "/jobs/search"}
+        />
+        <LabeledInput
+          label="Notifications base URL"
+          value={notifBase}
+          onChange={(e) => setNotifBase(e.target.value)}
+          placeholder={EXEC_BASE}
+        />
+        <LabeledInput
+          label="CV Handling base URL"
+          value={cvBase}
+          onChange={(e) => setCvBase(e.target.value)}
+          placeholder={EXEC_BASE}
+        />
+        <LabeledInput
+          label="Matcher base URL"
+          value={matcherBase}
+          onChange={(e) => setMatcherBase(e.target.value)}
+          placeholder={EXEC_BASE}
+        />
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={resetApiBasesToDefaults}>
+            Reset to execute-api defaults
+          </Button>
+          <Button variant="outline" onClick={probeCorsLogin}>
+            Probe CORS for /auth/login
+          </Button>
+          <span className="text-xs text-gray-500">
+            Emits preflight result to the error panel.
+          </span>
         </div>
       </CardContent>
     </Card>
   );
 
   const AuthCard = (
-    <Card className="border-0 shadow-xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <LogIn className="w-5 h-5" /> Authenticate
-        </CardTitle>
-        <CardDescription>
-          Create an account, verify it, then sign in.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid gap-2">
-          <Label>Email</Label>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
+  <Card className="border-0 shadow-xl">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <LogIn className="w-5 h-5" /> Authenticate
+      </CardTitle>
+      <CardDescription>
+        Create an account, verify it, then sign in.
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="grid gap-4">
+      <LabeledInput
+        label="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        type="email"
+      />
+      <LabeledInput
+        label="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="••••••••"
+        type="password"
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={apiRegister} disabled={busy} className="gap-2">
+          <UserPlus className="w-4 h-4" /> Register
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={apiVerifyLink}
+          disabled={busy}
+          className="gap-2"
+        >
+          <MailCheck className="w-4 h-4" /> Get verify link
+        </Button>
+        <Button
+          variant="default"
+          onClick={apiLogin}
+          disabled={busy}
+          className="gap-2"
+        >
+          <LogIn className="w-4 h-4" /> Login
+        </Button>
+      </div>
+      {isAuthed && (
+        <div className="flex items-center gap-2 text-sm">
+          <CheckCircle2 className="w-4 h-4" /> Signed in as{" "}
+          <span className="font-medium">{email}</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={apiRegister} disabled={busy} className="gap-2">
-            <UserPlus className="w-4 h-4" /> Register
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={apiVerifyLink}
-            disabled={busy}
-            className="gap-2"
-          >
-            <MailCheck className="w-4 h-4" /> Get verify link
-          </Button>
-          <Button
-            variant="default"
-            onClick={apiLogin}
-            disabled={busy}
-            className="gap-2"
-          >
-            <LogIn className="w-4 h-4" /> Login
-          </Button>
-        </div>
-        {isAuthed && (
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle2 className="w-4 h-4" /> Signed in as{" "}
-            <span className="font-medium">{email}</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+      )}
+    </CardContent>
+  </Card>
+);
 
   const SearchCard = (
     <Card className="border-0 shadow-xl">
@@ -322,41 +602,34 @@ export default function App() {
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid md:grid-cols-3 gap-3">
-          <div className="grid gap-2">
-            <Label>Keywords</Label>
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="e.g., Python, Data, React"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Location</Label>
-            <Input
-              value={loc}
-              onChange={(e) => setLoc(e.target.value)}
-              placeholder="Bucharest, RO"
-            />
-          </div>
+          <LabeledInput
+            label="Keywords"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="e.g., Python, Data, React"
+          />
+          <LabeledInput
+            label="Location"
+            value={loc}
+            onChange={(e) => setLoc(e.target.value)}
+            placeholder="Bucharest, RO"
+          />
           <div className="grid grid-cols-2 gap-2">
-            <div className="grid gap-2">
-              <Label>Page</Label>
-              <Input
-                type="number"
-                value={page}
-                onChange={(e) => setPage(parseInt(e.target.value || "1"))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Per page</Label>
-              <Input
-                type="number"
-                value={perPage}
-                onChange={(e) => setPerPage(parseInt(e.target.value || "20"))}
-              />
-            </div>
+            <LabeledInput
+              label="Page"
+              value={String(page)}
+              onChange={(e) => setPage(parseInt(e.target.value || "1"))}
+              type="number"
+            />
+            <LabeledInput
+              label="Per page"
+              value={String(perPage)}
+              onChange={(e) => setPerPage(parseInt(e.target.value || "20"))}
+              type="number"
+            />
           </div>
         </div>
+
         <div className="flex gap-2">
           <Button onClick={apiSearch} disabled={busy} className="gap-2">
             <SearchIcon className="w-4 h-4" /> Search
@@ -449,21 +722,17 @@ export default function App() {
       </CardHeader>
       <CardContent className="grid gap-3">
         <div className="grid md:grid-cols-2 gap-3">
-          <div className="grid gap-2">
-            <Label>To</Label>
-            <Input
-              value={notifyTo}
-              onChange={(e) => setNotifyTo(e.target.value)}
-              placeholder={email || "you@example.com"}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Subject</Label>
-            <Input
-              value={notifySubject}
-              onChange={(e) => setNotifySubject(e.target.value)}
-            />
-          </div>
+          <LabeledInput
+            label="To"
+            value={notifyTo}
+            onChange={(e) => setNotifyTo(e.target.value)}
+            placeholder={email || "you@example.com"}
+          />
+          <LabeledInput
+            label="Subject"
+            value={notifySubject}
+            onChange={(e) => setNotifySubject(e.target.value)}
+          />
         </div>
         <div className="grid gap-2">
           <Label>Message</Label>
@@ -481,6 +750,8 @@ export default function App() {
       </CardContent>
     </Card>
   );
+
+  // --------------------------------- Render ---------------------------------
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-muted/20">
@@ -501,10 +772,13 @@ export default function App() {
           </div>
 
           <Tabs value={tab} onValueChange={setTab} className="hidden md:block">
-            <TabsList>
+            <TabsList className="hidden md:flex gap-2">
               <TabsTrigger value="search">Search</TabsTrigger>
               <TabsTrigger value="auth">Auth</TabsTrigger>
               <TabsTrigger value="notify">Notify</TabsTrigger>
+              <TabsTrigger value="cv">CV</TabsTrigger>
+              <TabsTrigger value="matches">Matches</TabsTrigger>
+              <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -514,10 +788,13 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 py-6 grid gap-6">
         <div className="md:hidden">
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="w-full grid grid-cols-4">
+            <TabsList className="w-full grid grid-cols-7">
               <TabsTrigger value="search">Search</TabsTrigger>
               <TabsTrigger value="auth">Auth</TabsTrigger>
               <TabsTrigger value="notify">Notify</TabsTrigger>
+              <TabsTrigger value="cv">CV</TabsTrigger>
+              <TabsTrigger value="matches">Matches</TabsTrigger>
+              <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -525,10 +802,132 @@ export default function App() {
 
         {tab === "search" && SearchCard}
         {tab === "auth" && AuthCard}
+
+        {tab === "cv" && (
+          <Card className="p-6 space-y-4">
+            <h2 className="text-xl font-semibold">CV Upload & Status</h2>
+            <div className="grid md:grid-cols-2 gap-4 items-end">
+              <div>
+                <Label>Pick PDF</Label>
+                <Input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setCvFile(e.target.files?.[0] || null)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button disabled={!cvFile || busy} onClick={apiPresignAndUploadCV}>
+                  Upload CV
+                </Button>
+                <Button variant="secondary" onClick={apiCvStatus} disabled={busy}>
+                  Refresh Status
+                </Button>
+              </div>
+            </div>
+            {cvStatus && (
+              <div className="text-sm space-y-2">
+                <div>
+                  <b>PDF key:</b> {cvStatus.cv_pdf_key || "—"}
+                </div>
+                <div>
+                  <b>Keywords key:</b> {cvStatus.cv_keywords_key || "—"}
+                </div>
+                <div>
+                  <b>Keywords (sample):</b>{" "}
+                  <code className="break-all">
+                    {Array.isArray(cvStatus.keywords)
+                      ? cvStatus.keywords.slice(0, 20).join(", ")
+                      : "—"}
+                  </code>
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {tab === "matches" && (
+          <Card className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Matches</h2>
+              <Button onClick={apiFetchMatches} disabled={busy}>
+                Refresh
+              </Button>
+            </div>
+            {!matches && (
+              <p className="text-sm text-gray-500">No matches loaded yet.</p>
+            )}
+            {Array.isArray(matches) && matches.length > 0 && (
+              <div className="grid gap-3">
+                {matches.map((m: any, idx: number) => (
+                  <Card key={idx} className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium">
+                          {m.title || m.job_title || "Match"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {m.company || m.company_name || ""}
+                        </div>
+                      </div>
+                      <div className="text-xs">
+                        {typeof m.score !== "undefined" ? (
+                          <>
+                            Score: <b>{Math.round((m.score || 0) * 100) / 100}</b>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                    {m.url && (
+                      <a
+                        className="inline-flex items-center text-sm underline mt-2"
+                        href={m.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <LinkIcon className="w-4 h-4 mr-1" />
+                        Open job
+                      </a>
+                    )}
+                    {Array.isArray(m.keywords) && m.keywords.length > 0 && (
+                      <div className="mt-2 text-xs">
+                        <b>Keywords:</b> {m.keywords.slice(0, 15).join(", ")}
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {tab === "profile" && (
+          <Card className="p-6 space-y-4">
+            <h2 className="text-xl font-semibold">Profile</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <LabeledInput
+                label="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <div>
+                <Label>Token</Label>
+                <div className="text-xs p-2 border rounded bg-gray-50 break-all">
+                  {token || "—"}
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">
+              Use <code>/me</code> endpoints with the token. The UI stores it in
+              local storage.
+            </p>
+          </Card>
+        )}
+
         {tab === "notify" && NotificationsCard}
         {tab === "settings" && SettingsPanel}
       </main>
 
+      {/* Toast */}
       {toast && (
         <motion.div
           initial={{ y: 20, opacity: 0 }}
@@ -545,9 +944,96 @@ export default function App() {
         </motion.div>
       )}
 
+      {/* Debug toggle + panel */}
+      {lastDebug && (
+        <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+          <Button
+            size="sm"
+            variant={debugOpen ? "default" : "secondary"}
+            onClick={() => setDebugOpen((v) => !v)}
+          >
+            {debugOpen ? "Hide errors" : "Show last error"}
+          </Button>
+        </div>
+      )}
+      {debugOpen && lastDebug && (
+        <div className="fixed inset-x-0 bottom-0 z-40">
+          <Card className="m-4 p-4 max-w-5xl mx-auto shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold">Last network error</div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" onClick={copyDebug}>
+                  Copy JSON
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDebugOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+            <Separator className="my-3" />
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div className="space-y-2">
+                <div>
+                  <b>Time:</b> {lastDebug.ts}
+                </div>
+                <div className="break-all">
+                  <b>URL:</b> {lastDebug.request.url}
+                </div>
+                <div>
+                  <b>Method:</b> {lastDebug.request.method}
+                </div>
+                {lastDebug.error && (
+                  <div className="text-red-600">
+                    <b>Error:</b> {lastDebug.error}
+                  </div>
+                )}
+                <div>
+                  <b>Request headers</b>
+                  <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-40">
+                    {JSON.stringify(lastDebug.request.headers, null, 2)}
+                  </pre>
+                </div>
+                {lastDebug.request.bodyPreview && (
+                  <div>
+                    <b>Request body (preview)</b>
+                    <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-40">
+                      {lastDebug.request.bodyPreview}
+                    </pre>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <b>Status:</b> {lastDebug.response?.status}{" "}
+                  {lastDebug.response?.statusText}
+                </div>
+                <div>
+                  <b>Response headers</b>
+                  <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-40">
+                    {JSON.stringify(lastDebug.response?.headers ?? {}, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <b>Response body</b>
+                  <Textarea
+                    readOnly
+                    className="text-xs h-40"
+                    value={lastDebug.response?.bodyText ?? ""}
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <footer className="py-8 text-center text-xs text-gray-500">
-        Built for the provided repo · Tweak endpoints in Settings · Password is
-        hardcoded as <code>changeme123</code> for demo.
+        Built for the provided repo · Tweak endpoints in Settings · Password is{" "}
+        <code>changeme123</code> for demo.
       </footer>
     </div>
   );

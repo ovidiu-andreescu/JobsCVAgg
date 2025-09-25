@@ -189,6 +189,8 @@ export default function App() {
   const [matches, setMatches] = useState<any[] | null>(null);
   const [lastUploadKey, setLastUploadKey] = useState<string | null>(null);
   const [cvNotReady, setCvNotReady] = useState(false);
+  const [matchesRaw, setMatchesRaw] = useState<any>(null);
+  const [matchesEndpointTried, setMatchesEndpointTried] = useState<string[]>([]);
 
   // debug panel state (listens to global fetch debugger from main.tsx)
   const [debugOpen, setDebugOpen] = useState(false);
@@ -400,28 +402,47 @@ async function apiPresignAndUploadCV() {
     }
   }
 
-  async function apiFetchMatches() {
-    if (!token) return setToast("Please log in first");
-    setBusy(true);
-    try {
-      const r = await fetch(`${abs(matcherBase)}/me/matches`, {
-        method: "GET",
-        mode: "cors",
-        credentials: "omit",
-        headers: {
-          "accept": "application/json",
-          ...authHeaders(token),
-        },
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error((data as any)?.detail || "Fetch matches failed");
-      setMatches(Array.isArray(data) ? data : (data as any).items || []);
-    } catch (e: any) {
-      setToast(e.message || "Matches error");
-    } finally {
-      setBusy(false);
+async function apiFetchMatches() {
+  if (!token) return setToast("Please log in first");
+  setBusy(true);
+  try {
+    const url = `${abs(matcherBase)}/match/me?limit=50`; // <-- correct path
+    const r = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      credentials: "omit",
+      headers: {
+        "accept": "application/json",
+        ...authHeaders(token),
+      },
+    });
+
+    const text = await r.text().catch(() => "");
+    let data: any = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { /* not json */ }
+
+    if (r.status === 404) {
+      const msg = (data && data.detail) ? String(data.detail) : "No matches (CV keywords missing)";
+      setMatches([]);
+      setToast(msg);
+      return;
     }
+
+    if (!r.ok) {
+      throw new Error(
+        (data && data.detail) ? String(data.detail) : `Matches error: ${r.status}${text ? ` — ${text.slice(0,120)}` : ""}`
+      );
+    }
+
+    const arr = Array.isArray(data) ? data : [];
+    setMatches(arr);
+    setToast(arr.length ? `Loaded ${arr.length} match(es).` : "No matches found.");
+  } catch (e: any) {
+    setToast(e?.message || "Matches error");
+  } finally {
+    setBusy(false);
   }
+}
 
   async function apiSendNotification() {
     setBusy(true);

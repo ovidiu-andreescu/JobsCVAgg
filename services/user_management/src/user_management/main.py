@@ -23,7 +23,6 @@ app.add_middleware(
     allow_credentials=False,                  # don’t set to True unless you need cookies
     allow_methods=["GET", "POST", "OPTIONS"], # or ["*"]
     allow_headers=["Content-Type", "Authorization", "*"],
-    expose_headers=[],
     max_age=600,
 )
 

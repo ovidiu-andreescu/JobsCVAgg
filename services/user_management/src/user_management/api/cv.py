@@ -20,11 +20,27 @@ class PresignOut(BaseModel):
     url: str
     fields: dict
 
+class CvStatus(BaseModel):
+    cv_pdf_key: str | None = None
+    cv_keywords_key: str | None = None
+    keywords: list[str] | None = None
+
 def _require(name: str) -> str:
     v = os.getenv(name)
     if not v:
         raise RuntimeError(f"missing env var {name}")
     return v
+
+def _latest_user_pdf_key(s3, bucket: str, email: str) -> str | None:
+    prefix = f"uploads/{email}/"
+    resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    contents = resp.get("Contents", [])
+    pdf_objs = [c for c in contents if c["Key"].lower().endswith(".pdf")]
+    if not pdf_objs:
+        return None
+    pdf_objs.sort(key=lambda x: x["LastModified"], reverse=True)
+    return pdf_objs[0]["Key"]
+
 
 @lru_cache(maxsize=1)
 def _s3_and_bucket():
@@ -51,3 +67,30 @@ def presign(p: PresignIn, current_user: CurrentUser = Depends(get_current_user))
     except Exception as e:
         print(f"[presign] {type(e).__name__}: {e}", flush=True)
         raise HTTPException(status_code=500, detail="presign_failed")
+
+@router.get("", response_model=CvStatus)
+@router.get("/", response_model=CvStatus)
+def get_cv_status(current_user: CurrentUser = Depends(get_current_user)):
+    s3, bucket = _s3_and_bucket()
+    pdf_key = _latest_user_pdf_key(s3, bucket, current_user.email)
+    if not pdf_key:
+        raise HTTPException(status_code=204, detail="no_cv")
+
+    if pdf_key.lower().endswith(".pdf"):
+        base = pdf_key[:-4]
+    else:
+        base = pdf_key
+    kw_key = f"{base}.keywords.json"
+
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=kw_key)
+        body = obj["Body"].read()
+        import json
+        data = json.loads(body.decode("utf-8")) if body else {}
+        kws = data.get("keywords")
+        return CvStatus(cv_pdf_key=pdf_key, cv_keywords_key=kw_key, keywords=kws if isinstance(kws, list) else None)
+    except s3.exceptions.NoSuchKey:
+        raise HTTPException(status_code=404, detail="cv_not_ready")
+    except Exception as e:
+        print(f"[get_cv_status] {type(e).__name__}: {e}", flush=True)
+        raise HTTPException(status_code=500, detail="cv_status_failed")

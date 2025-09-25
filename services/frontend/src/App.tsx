@@ -187,6 +187,8 @@ export default function App() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvStatus, setCvStatus] = useState<any>(null);
   const [matches, setMatches] = useState<any[] | null>(null);
+  const [lastUploadKey, setLastUploadKey] = useState<string | null>(null);
+  const [cvNotReady, setCvNotReady] = useState(false);
 
   // debug panel state (listens to global fetch debugger from main.tsx)
   const [debugOpen, setDebugOpen] = useState(false);
@@ -312,44 +314,68 @@ async function apiLogin() {
     }
   }
 
-  async function apiPresignAndUploadCV() {
-    if (!cvFile) return setToast("Pick a PDF first");
-    if (!token) return setToast("Please log in first");
-    setBusy(true);
-    try {
-      const r = await fetch(`${abs(cvBase)}/me/cv/presign`, {
-        method: "POST",
-        mode: "cors",
-        credentials: "omit",
-        headers: {
-          "accept": "application/json",
-          "content-type": "application/json",
-          ...authHeaders(token),
-        },
-        body: JSON.stringify({
-          filename: cvFile.name,
-          content_type: cvFile.type || "application/pdf",
-        }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error((data as any)?.detail || "Failed to presign");
+async function apiPresignAndUploadCV() {
+  if (!cvFile) return setToast("Pick a PDF first");
+  if (!token) return setToast("Please log in first");
+  setBusy(true);
+  try {
+    const r = await fetch(`${abs(cvBase)}/me/cv/presign`, {
+      method: "POST",
+      mode: "cors",
+      credentials: "omit",
+      headers: {
+        "accept": "application/json",
+        "content-type": "application/json",
+        ...authHeaders(token),
+      },
+      body: JSON.stringify({
+        filename: cvFile.name,
+        content_type: cvFile.type || "application/pdf",
+      }),
+    });
 
-      const form = new FormData();
-      for (const [k, v] of Object.entries((data as any).fields || {}))
-        form.append(k, String(v));
-      form.append("key", (data as any).key);
-      form.append("Content-Type", cvFile.type || "application/pdf");
-      form.append("file", cvFile);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((data as any)?.detail || "Failed to presign");
 
-      const s3 = await fetch((data as any).url, { method: "POST", body: form });
-      if (!s3.ok) throw new Error(`S3 upload failed: ${s3.status}`);
-      setToast("Uploaded. Processing may take ~30–60s. Check status.");
-    } catch (e: any) {
-      setToast(e.message || "CV upload failed");
-    } finally {
-      setBusy(false);
+    const url = (data as any).url as string;
+    const fields = ((data as any).fields ?? {}) as Record<string, string>;
+
+    // 2) Build FormData from *only* the presigned fields
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) {
+      form.append(k, v);
     }
+
+    if (!Object.prototype.hasOwnProperty.call(fields, "Content-Type")) {
+      form.append("Content-Type", cvFile.type || "application/pdf");
+    }
+
+    form.append("file", cvFile);
+
+    {
+      let keyCount = 0;
+      for (const [k] of (form as any).entries()) if (k === "key") keyCount++;
+      if (keyCount !== 1) {
+        throw new Error(`Upload form is invalid: expected 1 "key" field, found ${keyCount}`);
+      }
+    }
+
+    // 6) POST to S3
+    const s3 = await fetch(url, { method: "POST", body: form, mode: "cors" });
+    if (!s3.ok) {
+      const text = await s3.text().catch(() => "");
+      throw new Error(`S3 upload failed: ${s3.status}${text ? ` — ${text.slice(0, 300)}` : ""}`);
+    }
+
+    setToast("Uploaded. Processing may take ~30–60s. Check status.");
+  } catch (e: any) {
+    setToast(e.message || "CV upload failed");
+  } finally {
+    setBusy(false);
   }
+}
+
+
 
   async function apiCvStatus() {
     if (!token) return setToast("Please log in first");
